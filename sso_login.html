@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGE — Autenticação Centralizada</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: radial-gradient(ellipse at 50% 30%, #f1f5f9 0%, #e8edf5 60%, #dde4ef 100%);
+            display: flex;
+            height: 100vh;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Canvas particles */
+        #bg-canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.5;
+        }
+
+        #vignette {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 50% 40%, transparent 45%, rgba(180, 192, 210, 0.18) 100%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .login-box {
+            background: #ffffff;
+            border: 1px solid rgba(10, 47, 168, 0.12);
+            border-radius: 16px;
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            position: relative;
+            z-index: 10;
+            box-shadow: 0 4px 18px rgba(10, 47, 168, 0.07), 0 1px 4px rgba(0, 0, 0, 0.04);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .brand-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .brand-block .brand-label {
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: #94a3b8;
+        }
+
+        .brand-block .brand-name {
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: #0a2fa8;
+            line-height: 1.2;
+        }
+
+        .brand-block .brand-divider {
+            width: 32px;
+            height: 2px;
+            background: #0a2fa8;
+            border-radius: 2px;
+            opacity: 0.25;
+            margin: 6px 0 12px 0;
+        }
+
+        .brand-block .brand-sub {
+            font-size: 13px;
+            font-weight: 600;
+            color: #475569;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        form {
+            width: 100%;
+        }
+
+        .login-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .login-input-group label {
+            font-size: 13px;
+            color: #444;
+            font-weight: 600;
+        }
+
+        .login-input-group input {
+            height: 48px;
+            background: #f7f9fc;
+            border: 1px solid #d1d9e6;
+            border-radius: 8px;
+            padding: 0 16px;
+            font-size: 15px;
+            color: #333;
+            transition: all 0.2s;
+        }
+
+        .login-input-group input:focus {
+            outline: none;
+            border-color: #0a2fa8;
+            box-shadow: 0 0 0 3px rgba(10, 47, 168, 0.1);
+            background: #fff;
+        }
+
+        .login-btn {
+            height: 48px;
+            background: #0f3868;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .login-btn:hover {
+            background: #0a2fa8;
+            transform: translateY(-1px);
+        }
+
+        .login-btn:active {
+            transform: translateY(1px);
+        }
+
+        #error-msg {
+            color: #ef4444;
+            font-size: 13px;
+            margin-top: 16px;
+            min-height: 20px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .login-footer {
+            position: absolute;
+            bottom: 24px;
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            z-index: 10;
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+    <div id="vignette"></div>
+
+    <div class="login-box">
+        <div class="brand-block">
+            <span class="brand-label">Grupo GPS</span>
+            <span class="brand-name">CENTRAL SGE</span>
+            <div class="brand-divider"></div>
+            <span class="brand-sub">Autenticação Centralizada</span>
+        </div>
+
+        <form id="sso-form">
+            <div class="login-input-group">
+                <label>E-mail</label>
+                <input type="email" id="email" required autocomplete="username" placeholder="seu.email@gps.com.br">
+            </div>
+            <div class="login-input-group">
+                <label>Senha</label>
+                <input type="password" id="password" required autocomplete="current-password" placeholder="••••••••">
+            </div>
+            <button type="submit" id="btn-submit" class="login-btn">Entrar</button>
+        </form>
+        <div id="error-msg"></div>
+    </div>
+
+    <div class="login-footer">SGE · Ecossistema Grupo GPS</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // ===== Particle Animation (espelhado do Gestão de Efetivo) =====
+        (function () {
+            const canvas = document.getElementById('bg-canvas');
+            const ctx = canvas.getContext('2d');
+            let particles = [];
+            function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+            window.addEventListener('resize', resize); resize();
+
+            for (let i = 0; i < 60; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+                    r: Math.random() * 2 + 0.5, dx: (Math.random() - 0.5) * 0.4, dy: (Math.random() - 0.5) * 0.4,
+                    opacity: Math.random() * 0.3 + 0.1
+                });
+            }
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles.forEach(p => {
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(10,47,168,${p.opacity})`; ctx.fill();
+                    p.x += p.dx; p.y += p.dy;
+                    if (p.x < 0 || p.x > canvas.width) p.dx *= -1;
+                    if (p.y < 0 || p.y > canvas.height) p.dy *= -1;
+                });
+                // Lines
+                for (let i = 0; i < particles.length; i++) {
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const dx = particles[i].x - particles[j].x;
+                        const dy = particles[i].y - particles[j].y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < 120) {
+                            ctx.beginPath(); ctx.moveTo(particles[i].x, particles[i].y);
+                            ctx.lineTo(particles[j].x, particles[j].y);
+                            ctx.strokeStyle = `rgba(10,47,168,${0.06 * (1 - dist / 120)})`;
+                            ctx.lineWidth = 0.5; ctx.stroke();
+                        }
+                    }
+                }
+                requestAnimationFrame(draw);
+            }
+            draw();
+        })();
+
+        // ===== SSO Login Logic =====
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const appSlug = urlParams.get('app_slug') || 'sge_hub';
+            const redirectUrl = urlParams.get('redirect');
+
+            document.getElementById('sso-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('btn-submit');
+                const err = document.getElementById('error-msg');
+                btn.disabled = true; btn.textContent = 'Autenticando...'; err.textContent = '';
+
+                const email = document.getElementById('email').value;
+                const pass = document.getElementById('password').value;
+
+                try {
+                    const supaUrl = "https://mgcjidryrjqiceielmzp.supabase.co";
+                    const anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nY2ppZHJ5cmpxaWNlaWVsbXpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMjEwNzEsImV4cCI6MjA4NzY5NzA3MX0.UAKkzy5fMIkrlmnqz9E9KknUw9xhoYpa3f1ptRpOuAA";
+                    const localSupabase = window.supabase.createClient(supaUrl, anonKey);
+
+                    const { data: authData, error: authError } = await localSupabase.auth.signInWithPassword({ email, password: pass });
+                    if (authError) throw new Error("Credenciais inválidas.");
+
+                    const meta = authData.user.user_metadata || {};
+                    const jwtPayload = {
+                        sub: authData.user.id,
+                        user: {
+                            id: authData.user.id,
+                            email: email,
+                            nome: meta.full_name || email.split('@')[0],
+                            perfil: meta.perfil || 'ADM'
+                        },
+                        app_slug: appSlug,
+                        exp: Math.floor(Date.now() / 1000) + (60 * 60 * 8)
+                    };
+
+                    // Registrar sessão no banco para o Radar
+                    try {
+                        const svcSupabase = window.supabase.createClient(supaUrl, anonKey, { db: { schema: 'gps_compartilhado' } });
+
+                        // Buscar sistema pelo slug
+                        const { data: sysData } = await svcSupabase.from('sge_central_sistemas').select('id').eq('slug', appSlug).single();
+
+                        if (sysData) {
+                            await svcSupabase.from('sge_central_sessoes').insert({
+                                usuario_id: authData.user.id,
+                                sistema_id: sysData.id,
+                                ip_address: '0.0.0.0',
+                                user_agent: navigator.userAgent,
+                                expira_em: new Date(Date.now() + (1000 * 60 * 60 * 8)).toISOString()
+                            });
+                        }
+                    } catch (sessionErr) {
+                        console.warn('Sessão não registrada (RLS pode estar bloqueando):', sessionErr);
+                    }
+
+                    const payloadBase64 = btoa(JSON.stringify(jwtPayload));
+                    const jwtToken = `eyJhbGciOiJIUzI1NiJ9.${payloadBase64}.sge_central_sig`;
+
+                    if (redirectUrl) {
+                        const separator = redirectUrl.includes('?') ? '&' : '?';
+                        window.location.href = `${redirectUrl}${separator}sso_token=${jwtToken}`;
+                    } else {
+                        alert("Logado com sucesso! Retorno não fornecido.");
+                    }
+                } catch (error) {
+                    err.textContent = error.message;
+                    btn.disabled = false; btn.textContent = 'Entrar';
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
