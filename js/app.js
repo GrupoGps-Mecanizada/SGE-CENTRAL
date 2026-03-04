@@ -199,12 +199,13 @@ async function loadAuditLogs() {
         const tbody = document.querySelector('#table-auditoria tbody');
         tbody.innerHTML = '';
         logs.forEach(l => {
+            const detalhesStr = l.detalhes ? (typeof l.detalhes === 'object' ? JSON.stringify(l.detalhes) : l.detalhes) : '—';
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><small>${new Date(l.criado_em).toLocaleString('pt-BR')}</small></td>
-                <td>${l.usuarios?.nome || l.usuario_id || '—'}</td>
+                <td><small>${new Date(l.realizado_em).toLocaleString('pt-BR')}</small></td>
+                <td>${l.admin?.nome || l.admin_id || '—'}</td>
                 <td><code>${l.acao}</code></td>
-                <td style="color:var(--text-3);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.detalhes || '—'}</td>
+                <td style="color:var(--text-3);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${detalhesStr}</td>
             `;
             tbody.appendChild(tr);
         });

@@ -29,8 +29,8 @@ async function fetchActiveSessions() {
         .from('sge_central_sessoes')
         .select(`
             id, ultimo_ping_em, ip_address, sistema_id, usuario_id,
-            usuarios:sge_central_usuarios(nome, email),
-            sistemas:sge_central_sistemas(nome)
+            usuarios:sge_central_usuarios!sge_central_sessoes_usuario_id_fkey(nome, email),
+            sistemas:sge_central_sistemas!sge_central_sessoes_sistema_id_fkey(nome)
         `)
         .eq('is_revoked', false)
         .gt('expira_em', new Date().toISOString())
@@ -78,12 +78,12 @@ async function fetchAllSystems() {
 
 async function fetchAuditLogs() {
     const { data, error } = await db()
-        .from('sge_central_audit_log')
+        .from('sge_central_auditoria')
         .select(`
-            id, acao, detalhes, criado_em, usuario_id,
-            usuarios:sge_central_usuarios(nome)
+            id, acao, detalhes, realizado_em, admin_id,
+            admin:sge_central_usuarios!sge_central_auditoria_admin_id_fkey(nome)
         `)
-        .order('criado_em', { ascending: false })
+        .order('realizado_em', { ascending: false })
         .limit(100);
     if (error) { console.warn('Audit fetch:', error); return []; }
     return data || [];
