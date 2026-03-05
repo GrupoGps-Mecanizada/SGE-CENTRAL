@@ -241,15 +241,8 @@ async function loadAllData() {
 function initRadarPresence() {
     if (_radarChannel) return;
 
-    // Client dedicado ao canal de presença (anon key, sem auth ativa para evitar GoTrueClient duplo)
-    _radarSupabase = window.supabase.createClient(SUPABASE_PROJECT_URL, ANON_KEY, {
-        auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-            detectSessionInUrl: false,
-        },
-        realtime: { params: { eventsPerSecond: 10 } }
-    });
+    // Utiliza o cliente existente para evitar o aviso "Multiple GoTrueClient instances"
+    _radarSupabase = window.SGE_API.db();
 
     _radarChannel = _radarSupabase.channel(RADAR_CHANNEL);
 
