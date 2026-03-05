@@ -7,6 +7,7 @@ const SUPABASE_PROJECT_URL = "https://mgcjidryrjqiceielmzp.supabase.co";
 let _allSystems = [];
 let _allProfiles = [];
 let _allSectors = [];
+let _serviceKey = ''; // Stored on login for Auth admin API calls
 
 document.addEventListener('DOMContentLoaded', () => {
     // ========== DUAL-MODE DETECTION ==========
@@ -26,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const doLogin = async () => {
         const key = document.getElementById('login-key').value.trim();
         if (!key) return;
+        _serviceKey = key; // Store for Auth admin API calls
         const errEl = document.getElementById('login-error');
         errEl.textContent = '';
 
@@ -474,10 +476,36 @@ function closeUserDrawer() {
 // ========== CRUD ACTIONS ==========
 async function toggleUserStatus(id, currentActive) {
     const action = currentActive ? 'BLOQUEAR' : 'ATIVAR';
-    if (!confirm(`Deseja ${action} este usuário?`)) return;
+    if (!confirm(`Deseja ${action} este usuário?\n\nIsso irá ${currentActive ? 'impedir' : 'permitir'} o acesso a TODOS os sistemas do ecossistema SGE.`)) return;
     try {
+        // 1. Update sge_central_usuarios.is_active
         await window.SGE_API.updateUser(id, { is_active: !currentActive });
+
+        // 2. Ban/Unban in Supabase Auth (prevents even logging in)
+        try {
+            const adminUrl = `${SUPABASE_PROJECT_URL}/auth/v1/admin/users/${id}`;
+            const resp = await fetch(adminUrl, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${_serviceKey}`,
+                    'apikey': _serviceKey
+                },
+                body: JSON.stringify({
+                    ban_duration: currentActive ? '876000h' : 'none' // 100 years ban or unban
+                })
+            });
+            if (resp.ok) {
+                console.log(`[SGE] Auth ban ${currentActive ? 'applied' : 'removed'} for user ${id}`);
+            } else {
+                console.warn(`[SGE] Auth ban failed (${resp.status}) — RBAC still enforced via SSO check`);
+            }
+        } catch (banErr) {
+            console.warn('[SGE] Auth ban request failed:', banErr.message);
+        }
+
         loadUsers();
+        console.log(`[SGE] Usuário ${id} ${action === 'BLOQUEAR' ? 'bloqueado' : 'ativado'}`);
     } catch (e) { alert('Erro: ' + e.message); }
 }
 
