@@ -4,15 +4,62 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>SGE Central — Painel de Governança</title>
+    <title>SGE Central — Grupo GPS</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet" />
     <link rel="stylesheet" href="css/style.css" />
 </head>
 
 <body>
-    <!-- ==================== LOGIN VIEW ==================== -->
-    <div id="login-view" class="view" style="display:flex;">
+    <!-- 
+        DUAL MODE:
+        1. ?app_slug=X&redirect=Y → SSO LOGIN (autentica e devolve token ao sistema satélite)
+        2. URL limpa              → ADMIN PANEL (Service Role Key → dashboard de governança)
+    -->
+
+    <!-- ==================== SSO LOGIN VIEW (para sistemas satélite) ==================== -->
+    <div id="sso-view" class="view" style="display:none;">
+        <div class="login-box">
+            <div
+                style="display:flex; flex-direction:column; align-items:center; text-align:center; margin-bottom:30px;">
+                <span class="brand-sub-title">Grupo GPS</span>
+                <span class="brand-big">CENTRAL SGE</span>
+                <div
+                    style="width:32px; height:2px; background:#0f3868; border-radius:2px; opacity:0.25; margin:6px 0 12px;">
+                </div>
+                <span class="brand-tag">Autenticação Centralizada</span>
+            </div>
+
+            <div id="sso-app-info"
+                style="background:var(--bg-2); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:20px; font-size:12px; color:var(--text-2); text-align:center;">
+                Autenticando para: <strong id="sso-app-name">—</strong>
+            </div>
+
+            <form id="sso-form" autocomplete="on">
+                <div class="input-group">
+                    <label>E-mail</label>
+                    <input type="email" id="sso-email" required autocomplete="username"
+                        placeholder="seu.email@gps.com.br" />
+                </div>
+                <div class="input-group">
+                    <label>Senha</label>
+                    <input type="password" id="sso-password" required autocomplete="current-password"
+                        placeholder="••••••••" />
+                </div>
+                <button type="submit" class="btn-primary"
+                    style="width:100%; justify-content:center; height:48px; font-size:15px;" id="sso-btn-submit">
+                    Entrar
+                </button>
+                <div id="sso-error"
+                    style="color:var(--red); font-size:13px; margin-top:16px; text-align:center; min-height:20px;">
+                </div>
+            </form>
+        </div>
+        <div class="login-footer">SGE · Ecossistema Grupo GPS</div>
+    </div>
+
+    <!-- ==================== ADMIN LOGIN VIEW (Service Role Key) ==================== -->
+    <div id="admin-login-view" class="view" style="display:none;">
         <div class="login-box">
             <div
                 style="display:flex; flex-direction:column; align-items:center; text-align:center; margin-bottom:30px;">
@@ -24,18 +71,19 @@
                 <span class="brand-tag">Painel de Governança</span>
             </div>
 
-            <div class="input-group">
-                <label>Service Role Key</label>
-                <input type="password" id="login-key" placeholder="Chave de serviço do Supabase" />
-            </div>
-
-            <button class="btn-primary" style="width:100%; justify-content:center; height:48px; font-size:15px;"
-                id="btn-login">
-                Entrar
-            </button>
-            <div id="login-error"
-                style="color:var(--red); font-size:13px; margin-top:16px; text-align:center; min-height:20px;">
-            </div>
+            <form onsubmit="return false;" autocomplete="off">
+                <div class="input-group">
+                    <label>Service Role Key</label>
+                    <input type="password" id="login-key" placeholder="Chave de serviço do Supabase" />
+                </div>
+                <button class="btn-primary" type="button"
+                    style="width:100%; justify-content:center; height:48px; font-size:15px;" id="btn-login">
+                    Entrar no Painel
+                </button>
+                <div id="login-error"
+                    style="color:var(--red); font-size:13px; margin-top:16px; text-align:center; min-height:20px;">
+                </div>
+            </form>
         </div>
         <div class="login-footer">
             Desenvolvido por Warlison Abreu — Grupo GPS
@@ -43,7 +91,7 @@
     </div>
 
     <!-- ==================== DASHBOARD VIEW ==================== -->
-    <div id="dashboard-view" class="hidden">
+    <div id="dashboard-view" class="hidden" style="display:none;">
         <div id="app">
 
             <!-- TOPBAR -->
@@ -54,45 +102,31 @@
                             <path d="M4 6h16M4 12h16M4 18h16" />
                         </svg>
                     </button>
-                </div>
-
-                <!-- Center Logo -->
-                <div class="topbar-logo">
-                    <span class="logo-gps">CENTRAL SGE</span>
-                    <div class="logo-divider"></div>
-                    <span class="logo-system">Painel de Governança</span>
-                </div>
-
-                <div id="topbar-right">
-                    <div class="topbar-user" id="topbar-user-info" style="display:none;">
-                        <div class="user-avatar" id="user-avatar">A</div>
-                        <span id="user-name">Admin</span>
+                    <div class="topbar-logo">
+                        <span class="logo-gps">GRUPO GPS</span>
+                        <span class="logo-system">CENTRAL SGE</span>
                     </div>
-                    <button class="topbar-icon-btn" id="btn-logout" title="Sair">
+                </div>
+                <div id="topbar-right">
+                    <button id="btn-logout" class="topbar-icon-btn" title="Sair">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                            <polyline points="16 17 21 12 16 7" />
-                            <line x1="21" y1="12" x2="9" y2="12" />
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
                         </svg>
                     </button>
                 </div>
             </div>
 
             <!-- NAVIGATION DRAWER -->
-            <div id="nav-menu-overlay" class="nav-menu-overlay hidden">
-                <div class="nav-menu-panel" onclick="event.stopPropagation()">
+            <div id="nav-menu-overlay" class="hidden">
+                <div id="nav-menu-panel" onclick="event.stopPropagation()">
                     <div class="nav-menu-header">
-                        <div class="sidebar-logo">
-                            <span class="brand-gps">Grupo GPS</span>
-                            <div class="brand-separator"></div>
-                            <span class="brand-system">Central SGE — Governança</span>
-                        </div>
+                        <span class="nav-menu-title">Navegação</span>
                     </div>
-                    <div class="nav-menu-body">
+                    <div class="nav-menu-items">
                         <button class="nav-menu-item active" data-panel="sessions">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="12" cy="12" r="10" />
-                                <circle cx="12" cy="12" r="3" />
+                                <path d="M12 6v6l4 2" />
                             </svg>
                             Radar de Sessões
                         </button>
@@ -100,8 +134,7 @@
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                                 <circle cx="9" cy="7" r="4" />
-                                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
                             </svg>
                             Gestão de Identidade
                         </button>
@@ -124,20 +157,20 @@
                         </button>
                         <button class="nav-menu-item" data-panel="audit">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                                <line x1="16" y1="13" x2="8" y2="13" />
+                                <line x1="16" y1="17" x2="8" y2="17" />
                             </svg>
                             Auditoria
                         </button>
                     </div>
                     <div class="nav-menu-footer">
-                        <button class="logout-btn" id="nav-logout-btn">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                                <polyline points="16 17 21 12 16 7" />
-                                <line x1="21" y1="12" x2="9" y2="12" />
+                        <button class="nav-menu-item" id="nav-logout-btn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
                             </svg>
-                            Desconectar
+                            Sair
                         </button>
                     </div>
                 </div>
@@ -150,18 +183,21 @@
                     <div class="panel-header">
                         <h2>Radar de Sessões Ativas</h2>
                     </div>
-                    <div class="stats-cards" id="stats-sessions">
-                        <div class="card">
-                            <h3>Online</h3>
-                            <div class="kpi green" id="kpi-online">0</div>
+                    <div class="stats-cards">
+                        <div class="stat-card">
+                            <div class="stat-label">Online</div>
+                            <div class="stat-number" id="kpi-online">0</div>
+                            <span class="status-dot online"></span>
                         </div>
-                        <div class="card">
-                            <h3>Ausente</h3>
-                            <div class="kpi yellow" id="kpi-away">0</div>
+                        <div class="stat-card">
+                            <div class="stat-label">Ausente</div>
+                            <div class="stat-number" id="kpi-away">0</div>
+                            <span class="status-dot away"></span>
                         </div>
-                        <div class="card">
-                            <h3>Offline</h3>
-                            <div class="kpi red" id="kpi-offline">0</div>
+                        <div class="stat-card">
+                            <div class="stat-label">Offline</div>
+                            <div class="stat-number" id="kpi-offline">0</div>
+                            <span class="status-dot offline"></span>
                         </div>
                     </div>
                     <div class="table-container">
@@ -169,17 +205,13 @@
                             <thead>
                                 <tr>
                                     <th>Status</th>
-                                    <th>Operador</th>
+                                    <th>Usuário</th>
                                     <th>Sistema</th>
                                     <th>IP</th>
                                     <th>Último Ping</th>
                                 </tr>
                             </thead>
-                            <tbody id="table-sessions">
-                                <tr>
-                                    <td colspan="5" class="table-empty">Nenhuma sessão ativa</td>
-                                </tr>
-                            </tbody>
+                            <tbody id="table-sessions"></tbody>
                         </table>
                     </div>
                 </div>
@@ -208,11 +240,7 @@
                                     <th>Ações</th>
                                 </tr>
                             </thead>
-                            <tbody id="table-users">
-                                <tr>
-                                    <td colspan="4" class="table-empty">Carregando...</td>
-                                </tr>
-                            </tbody>
+                            <tbody id="table-users"></tbody>
                         </table>
                     </div>
                 </div>
@@ -241,11 +269,7 @@
                                     <th>Ações</th>
                                 </tr>
                             </thead>
-                            <tbody id="table-sectors">
-                                <tr>
-                                    <td colspan="4" class="table-empty">Carregando...</td>
-                                </tr>
-                            </tbody>
+                            <tbody id="table-sectors"></tbody>
                         </table>
                     </div>
                 </div>
@@ -275,11 +299,7 @@
                                     <th>Ações</th>
                                 </tr>
                             </thead>
-                            <tbody id="table-systems">
-                                <tr>
-                                    <td colspan="5" class="table-empty">Carregando...</td>
-                                </tr>
-                            </tbody>
+                            <tbody id="table-systems"></tbody>
                         </table>
                     </div>
                 </div>
@@ -299,11 +319,7 @@
                                     <th>Detalhes</th>
                                 </tr>
                             </thead>
-                            <tbody id="table-auditoria">
-                                <tr>
-                                    <td colspan="4" class="table-empty">Nenhum registro de auditoria</td>
-                                </tr>
-                            </tbody>
+                            <tbody id="table-auditoria"></tbody>
                         </table>
                     </div>
                 </div>
@@ -318,6 +334,7 @@
     <!-- ==================== SCRIPTS ==================== -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/api.js"></script>
+    <script src="js/sso.js"></script>
     <script src="js/app.js"></script>
 </body>
 

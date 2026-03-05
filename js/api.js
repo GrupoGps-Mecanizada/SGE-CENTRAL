@@ -1,6 +1,10 @@
 /**
  * CENTRAL SGE — API Layer (Supabase Gateway)
  * Grupo GPS · Data Access · Schema: gps_compartilhado
+ * 
+ * Table structures:
+ *   sge_central_usuario_setores:  usuario_id + setor_id (composite PK, NO id column)
+ *   sge_central_usuario_sistema_acesso: id, usuario_id, sistema_id, perfil_id, concedido_por, concedido_em, is_active
  */
 let supabaseClient = null;
 
@@ -100,11 +104,12 @@ async function fetchAuditLogs() {
 
 // ==================== RBAC: Permissões de Acesso ====================
 
+// sge_central_usuario_sistema_acesso HAS an id column
 async function fetchUserAccess(userId) {
     const { data, error } = await db()
         .from('sge_central_usuario_sistema_acesso')
         .select(`
-            id, usuario_id, sistema_id, perfil_id,
+            id, usuario_id, sistema_id, perfil_id, is_active,
             sistema:sge_central_sistemas!sge_central_usuario_sistema_acesso_sistema_id_fkey(id, nome, slug, is_active),
             perfil:sge_central_perfis!sge_central_usuario_sistema_acesso_perfil_id_fkey(id, nome, nivel)
         `)
@@ -113,11 +118,12 @@ async function fetchUserAccess(userId) {
     return data || [];
 }
 
+// sge_central_usuario_setores has NO id column — composite PK (usuario_id, setor_id)
 async function fetchUserSectors(userId) {
     const { data, error } = await db()
         .from('sge_central_usuario_setores')
         .select(`
-            id, usuario_id, setor_id,
+            usuario_id, setor_id,
             setor:sge_central_setores!sge_central_usuario_setores_setor_id_fkey(id, sigla, nome)
         `)
         .eq('usuario_id', userId);
@@ -128,7 +134,7 @@ async function fetchUserSectors(userId) {
 async function grantSystemAccess(userId, sistemaId, perfilId) {
     const { data, error } = await db()
         .from('sge_central_usuario_sistema_acesso')
-        .insert({ usuario_id: userId, sistema_id: sistemaId, perfil_id: perfilId })
+        .insert({ usuario_id: userId, sistema_id: sistemaId, perfil_id: perfilId, is_active: true })
         .select();
     if (error) throw error;
     return data;
@@ -150,6 +156,15 @@ async function updateAccessProfile(accessId, newPerfilId) {
     if (error) throw error;
 }
 
+async function toggleAccessActive(accessId, newActiveState) {
+    const { error } = await db()
+        .from('sge_central_usuario_sistema_acesso')
+        .update({ is_active: newActiveState })
+        .eq('id', accessId);
+    if (error) throw error;
+}
+
+// Composite PK — delete by both columns
 async function addUserSector(userId, setorId) {
     const { data, error } = await db()
         .from('sge_central_usuario_setores')
@@ -159,11 +174,12 @@ async function addUserSector(userId, setorId) {
     return data;
 }
 
-async function removeUserSector(linkId) {
+async function removeUserSector(userId, setorId) {
     const { error } = await db()
         .from('sge_central_usuario_setores')
         .delete()
-        .eq('id', linkId);
+        .eq('usuario_id', userId)
+        .eq('setor_id', setorId);
     if (error) throw error;
 }
 
@@ -234,6 +250,7 @@ window.SGE_API = {
     grantSystemAccess,
     revokeSystemAccess,
     updateAccessProfile,
+    toggleAccessActive,
     addUserSector,
     removeUserSector,
     createUser,
