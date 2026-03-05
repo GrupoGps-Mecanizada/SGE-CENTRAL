@@ -76,6 +76,15 @@ async function fetchAllSystems() {
     return data || [];
 }
 
+async function fetchAllProfiles() {
+    const { data, error } = await db()
+        .from('sge_central_perfis')
+        .select('*')
+        .order('nivel', { ascending: false });
+    if (error) throw error;
+    return data || [];
+}
+
 async function fetchAuditLogs() {
     const { data, error } = await db()
         .from('sge_central_auditoria')
@@ -87,6 +96,75 @@ async function fetchAuditLogs() {
         .limit(100);
     if (error) { console.warn('Audit fetch:', error); return []; }
     return data || [];
+}
+
+// ==================== RBAC: Permissões de Acesso ====================
+
+async function fetchUserAccess(userId) {
+    const { data, error } = await db()
+        .from('sge_central_usuario_sistema_acesso')
+        .select(`
+            id, usuario_id, sistema_id, perfil_id,
+            sistema:sge_central_sistemas!sge_central_usuario_sistema_acesso_sistema_id_fkey(id, nome, slug, is_active),
+            perfil:sge_central_perfis!sge_central_usuario_sistema_acesso_perfil_id_fkey(id, nome, nivel)
+        `)
+        .eq('usuario_id', userId);
+    if (error) throw error;
+    return data || [];
+}
+
+async function fetchUserSectors(userId) {
+    const { data, error } = await db()
+        .from('sge_central_usuario_setores')
+        .select(`
+            id, usuario_id, setor_id,
+            setor:sge_central_setores!sge_central_usuario_setores_setor_id_fkey(id, sigla, nome)
+        `)
+        .eq('usuario_id', userId);
+    if (error) throw error;
+    return data || [];
+}
+
+async function grantSystemAccess(userId, sistemaId, perfilId) {
+    const { data, error } = await db()
+        .from('sge_central_usuario_sistema_acesso')
+        .insert({ usuario_id: userId, sistema_id: sistemaId, perfil_id: perfilId })
+        .select();
+    if (error) throw error;
+    return data;
+}
+
+async function revokeSystemAccess(accessId) {
+    const { error } = await db()
+        .from('sge_central_usuario_sistema_acesso')
+        .delete()
+        .eq('id', accessId);
+    if (error) throw error;
+}
+
+async function updateAccessProfile(accessId, newPerfilId) {
+    const { error } = await db()
+        .from('sge_central_usuario_sistema_acesso')
+        .update({ perfil_id: newPerfilId })
+        .eq('id', accessId);
+    if (error) throw error;
+}
+
+async function addUserSector(userId, setorId) {
+    const { data, error } = await db()
+        .from('sge_central_usuario_setores')
+        .insert({ usuario_id: userId, setor_id: setorId })
+        .select();
+    if (error) throw error;
+    return data;
+}
+
+async function removeUserSector(linkId) {
+    const { error } = await db()
+        .from('sge_central_usuario_setores')
+        .delete()
+        .eq('id', linkId);
+    if (error) throw error;
 }
 
 // ==================== ESCRITA ====================
@@ -149,7 +227,15 @@ window.SGE_API = {
     fetchAllUsers,
     fetchAllSectors,
     fetchAllSystems,
+    fetchAllProfiles,
     fetchAuditLogs,
+    fetchUserAccess,
+    fetchUserSectors,
+    grantSystemAccess,
+    revokeSystemAccess,
+    updateAccessProfile,
+    addUserSector,
+    removeUserSector,
     createUser,
     updateUser,
     createSector,

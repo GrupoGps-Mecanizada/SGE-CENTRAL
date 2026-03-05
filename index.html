@@ -2,262 +2,320 @@
 <html lang="pt-BR">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Central SGE — Painel de Governança Master</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>SGE Central — Painel de Governança</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
+        rel="stylesheet" />
+    <link rel="stylesheet" href="css/style.css" />
 </head>
 
 <body>
-
-    <!-- Loading Overlay -->
-    <div id="loading" class="overlay hidden">
-        <div class="spinner"></div>
-        <p style="font-size:13px; color:var(--text-3)">Carregando dados da Master...</p>
-    </div>
-
-    <!-- ===================== LOGIN ===================== -->
-    <div id="login-view" class="view">
+    <!-- ==================== LOGIN VIEW ==================== -->
+    <div id="login-view" class="view" style="display:flex;">
         <div class="login-box">
-            <h2>Grupo GPS</h2>
-            <span class="brand-big">CENTRAL SGE</span>
-            <span class="brand-tag">Painel de Governança · Zero Trust</span>
-            <form id="form-login">
-                <div class="input-group">
-                    <label>Chave Mestra (Service Role Key)</label>
-                    <input type="password" id="admin-key" required
-                        placeholder="Cole aqui a Service Role Key do Supabase">
+            <div
+                style="display:flex; flex-direction:column; align-items:center; text-align:center; margin-bottom:30px;">
+                <span class="brand-sub-title">Grupo GPS</span>
+                <span class="brand-big">CENTRAL SGE</span>
+                <div
+                    style="width:32px; height:2px; background:#0f3868; border-radius:2px; opacity:0.25; margin:6px 0 12px;">
                 </div>
-                <button type="submit" class="btn-primary btn-full">Acessar Banco Master</button>
-            </form>
+                <span class="brand-tag">Painel de Governança</span>
+            </div>
+
+            <div class="input-group">
+                <label>Service Role Key</label>
+                <input type="password" id="login-key" placeholder="Chave de serviço do Supabase" />
+            </div>
+
+            <button class="btn-primary" style="width:100%; justify-content:center; height:48px; font-size:15px;"
+                id="btn-login">
+                Entrar
+            </button>
+            <div id="login-error"
+                style="color:var(--red); font-size:13px; margin-top:16px; text-align:center; min-height:20px;">
+            </div>
+        </div>
+        <div class="login-footer">
+            Desenvolvido por Warlison Abreu — Grupo GPS
         </div>
     </div>
 
-    <!-- ===================== DASHBOARD ===================== -->
-    <div id="dashboard-view" class="view hidden">
+    <!-- ==================== DASHBOARD VIEW ==================== -->
+    <div id="dashboard-view" class="hidden">
+        <div id="app">
 
-        <!-- Sidebar -->
-        <nav class="sidebar">
-            <div class="brand">
-                <h1>Grupo GPS</h1>
-                <span class="brand-name">CENTRAL SGE</span>
-                <span class="brand-sub">Governança & RBAC</span>
+            <!-- TOPBAR -->
+            <div id="topbar">
+                <div id="topbar-left">
+                    <button id="nav-menu-btn" class="topbar-icon-btn" aria-label="Menu" title="Menu">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Center Logo -->
+                <div class="topbar-logo">
+                    <span class="logo-gps">CENTRAL SGE</span>
+                    <div class="logo-divider"></div>
+                    <span class="logo-system">Painel de Governança</span>
+                </div>
+
+                <div id="topbar-right">
+                    <div class="topbar-user" id="topbar-user-info" style="display:none;">
+                        <div class="user-avatar" id="user-avatar">A</div>
+                        <span id="user-name">Admin</span>
+                    </div>
+                    <button class="topbar-icon-btn" id="btn-logout" title="Sair">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                            <polyline points="16 17 21 12 16 7" />
+                            <line x1="21" y1="12" x2="9" y2="12" />
+                        </svg>
+                    </button>
+                </div>
             </div>
-            <ul class="menu">
-                <li><button data-target="sessoes" class="active">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10" />
-                            <polyline points="12 6 12 12 16 14" />
-                        </svg>
-                        Radar de Sessões
-                    </button></li>
-                <li><button data-target="usuarios">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                            <circle cx="9" cy="7" r="4" />
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-                        </svg>
-                        Gestão de Identidade
-                    </button></li>
-                <li><button data-target="setores">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="7" height="7" />
-                            <rect x="14" y="3" width="7" height="7" />
-                            <rect x="14" y="14" width="7" height="7" />
-                            <rect x="3" y="14" width="7" height="7" />
-                        </svg>
-                        Setores (CRs)
-                    </button></li>
-                <li><button data-target="sistemas">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="2" y="3" width="20" height="14" rx="2" />
-                            <line x1="8" y1="21" x2="16" y2="21" />
-                            <line x1="12" y1="17" x2="12" y2="21" />
-                        </svg>
-                        Ecossistema SGE
-                    </button></li>
-                <li><button data-target="auditoria">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                            <polyline points="14 2 14 8 20 8" />
-                            <line x1="16" y1="13" x2="8" y2="13" />
-                            <line x1="16" y1="17" x2="8" y2="17" />
-                        </svg>
-                        Log de Auditoria
-                    </button></li>
-            </ul>
-            <div class="sidebar-footer">
-                <button id="btn-logout" class="btn-danger btn-full">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
-                    </svg>
-                    Bloquear Painel
-                </button>
-            </div>
-        </nav>
 
-        <!-- Main Content -->
-        <main class="content">
-
-            <!-- ===== PAINEL: RADAR DE SESSÕES ===== -->
-            <section id="sessoes" class="panel">
-                <div class="panel-header">
-                    <h2>Radar de Sessões Ativas</h2>
-                    <div class="actions">
-                        <button id="btn-refresh-sessions" class="btn-secondary btn-sm">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <polyline points="23 4 23 10 17 10" />
-                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            <!-- NAVIGATION DRAWER -->
+            <div id="nav-menu-overlay" class="nav-menu-overlay hidden">
+                <div class="nav-menu-panel" onclick="event.stopPropagation()">
+                    <div class="nav-menu-header">
+                        <div class="sidebar-logo">
+                            <span class="brand-gps">Grupo GPS</span>
+                            <div class="brand-separator"></div>
+                            <span class="brand-system">Central SGE — Governança</span>
+                        </div>
+                    </div>
+                    <div class="nav-menu-body">
+                        <button class="nav-menu-item active" data-panel="sessions">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10" />
+                                <circle cx="12" cy="12" r="3" />
                             </svg>
-                            Atualizar
+                            Radar de Sessões
+                        </button>
+                        <button class="nav-menu-item" data-panel="users">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                <circle cx="9" cy="7" r="4" />
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                            </svg>
+                            Gestão de Identidade
+                        </button>
+                        <button class="nav-menu-item" data-panel="sectors">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="7" height="7" />
+                                <rect x="14" y="3" width="7" height="7" />
+                                <rect x="14" y="14" width="7" height="7" />
+                                <rect x="3" y="14" width="7" height="7" />
+                            </svg>
+                            Setores / CRs
+                        </button>
+                        <button class="nav-menu-item" data-panel="systems">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                                <line x1="8" y1="21" x2="16" y2="21" />
+                                <line x1="12" y1="17" x2="12" y2="21" />
+                            </svg>
+                            Ecossistema SGE
+                        </button>
+                        <button class="nav-menu-item" data-panel="audit">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                            </svg>
+                            Auditoria
+                        </button>
+                    </div>
+                    <div class="nav-menu-footer">
+                        <button class="logout-btn" id="nav-logout-btn">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                                <polyline points="16 17 21 12 16 7" />
+                                <line x1="21" y1="12" x2="9" y2="12" />
+                            </svg>
+                            Desconectar
                         </button>
                     </div>
                 </div>
-                <div class="stats-cards">
-                    <div class="card">
-                        <h3>Usuários Online</h3>
-                        <p id="stat-online" class="kpi green">0</p>
-                    </div>
-                    <div class="card">
-                        <h3>Sessões Ausentes</h3>
-                        <p id="stat-ausente" class="kpi yellow">0</p>
-                    </div>
-                    <div class="card">
-                        <h3>Sistemas Ativos</h3>
-                        <p id="stat-systems" class="kpi blue">0</p>
-                    </div>
-                    <div class="card">
-                        <h3>Sessões Hoje</h3>
-                        <p id="stat-total" class="kpi red">0</p>
-                    </div>
-                </div>
-                <div class="table-container">
-                    <table id="table-sessoes">
-                        <thead>
-                            <tr>
-                                <th>Usuário</th>
-                                <th>Sistema</th>
-                                <th>Status</th>
-                                <th>IP</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                    <div id="empty-sessoes" class="table-empty hidden">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <circle cx="12" cy="12" r="10" />
-                            <line x1="15" y1="9" x2="9" y2="15" />
-                            <line x1="9" y1="9" x2="15" y2="15" />
-                        </svg>
-                        Nenhuma sessão ativa no momento
-                    </div>
-                </div>
-            </section>
+            </div>
 
-            <!-- ===== PAINEL: GESTÃO DE IDENTIDADE ===== -->
-            <section id="usuarios" class="panel hidden">
-                <div class="panel-header">
-                    <h2>Usuários da Organização</h2>
-                    <div class="actions">
-                        <button id="btn-new-user" class="btn-primary btn-sm">+ Novo Usuário</button>
+            <!-- MAIN CONTENT -->
+            <div id="main">
+                <!-- ==================== SESSIONS PANEL ==================== -->
+                <div id="panel-sessions" class="panel view active" style="display:flex;">
+                    <div class="panel-header">
+                        <h2>Radar de Sessões Ativas</h2>
+                    </div>
+                    <div class="stats-cards" id="stats-sessions">
+                        <div class="card">
+                            <h3>Online</h3>
+                            <div class="kpi green" id="kpi-online">0</div>
+                        </div>
+                        <div class="card">
+                            <h3>Ausente</h3>
+                            <div class="kpi yellow" id="kpi-away">0</div>
+                        </div>
+                        <div class="card">
+                            <h3>Offline</h3>
+                            <div class="kpi red" id="kpi-offline">0</div>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Status</th>
+                                    <th>Operador</th>
+                                    <th>Sistema</th>
+                                    <th>IP</th>
+                                    <th>Último Ping</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-sessions">
+                                <tr>
+                                    <td colspan="5" class="table-empty">Nenhuma sessão ativa</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                <div class="table-container">
-                    <table id="table-usuarios">
-                        <thead>
-                            <tr>
-                                <th>E-mail</th>
-                                <th>Nome</th>
-                                <th>Status</th>
-                                <th>Criado Em</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </section>
 
-            <!-- ===== PAINEL: SETORES ===== -->
-            <section id="setores" class="panel hidden">
-                <div class="panel-header">
-                    <h2>Estrutura de Setores</h2>
-                    <div class="actions">
-                        <button id="btn-new-sector" class="btn-primary btn-sm">+ Novo Setor</button>
+                <!-- ==================== USERS PANEL ==================== -->
+                <div id="panel-users" class="panel view" style="display:none;">
+                    <div class="panel-header">
+                        <h2>Gestão de Identidade</h2>
+                        <div class="actions">
+                            <button class="btn-primary" id="btn-create-user">
+                                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M8 2v12M2 8h12" />
+                                </svg>
+                                Novo Usuário
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>E-mail</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-users">
+                                <tr>
+                                    <td colspan="4" class="table-empty">Carregando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                <div class="table-container">
-                    <table id="table-setores">
-                        <thead>
-                            <tr>
-                                <th>Sigla</th>
-                                <th>Nome</th>
-                                <th>Descrição</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </section>
 
-            <!-- ===== PAINEL: ECOSSISTEMA ===== -->
-            <section id="sistemas" class="panel hidden">
-                <div class="panel-header">
-                    <h2>Gestão de Sistemas Satélites</h2>
-                    <div class="actions">
-                        <button id="btn-new-system" class="btn-primary btn-sm">+ Novo Sistema</button>
+                <!-- ==================== SECTORS PANEL ==================== -->
+                <div id="panel-sectors" class="panel view" style="display:none;">
+                    <div class="panel-header">
+                        <h2>Setores / Centros de Resultado</h2>
+                        <div class="actions">
+                            <button class="btn-primary" id="btn-create-sector">
+                                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M8 2v12M2 8h12" />
+                                </svg>
+                                Novo Setor
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Sigla</th>
+                                    <th>Nome</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-sectors">
+                                <tr>
+                                    <td colspan="4" class="table-empty">Carregando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                <div class="table-container">
-                    <table id="table-sistemas">
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Slug</th>
-                                <th>URL</th>
-                                <th>Status</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </section>
 
-            <!-- ===== PAINEL: AUDITORIA ===== -->
-            <section id="auditoria" class="panel hidden">
-                <div class="panel-header">
-                    <h2>Registro de Auditoria</h2>
-                    <div class="actions">
-                        <button id="btn-refresh-logs" class="btn-secondary btn-sm">Atualizar</button>
+                <!-- ==================== SYSTEMS PANEL ==================== -->
+                <div id="panel-systems" class="panel view" style="display:none;">
+                    <div class="panel-header">
+                        <h2>Ecossistema SGE</h2>
+                        <div class="actions">
+                            <button class="btn-primary" id="btn-create-system">
+                                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M8 2v12M2 8h12" />
+                                </svg>
+                                Novo Sistema
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Slug</th>
+                                    <th>Status</th>
+                                    <th>URL</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-systems">
+                                <tr>
+                                    <td colspan="5" class="table-empty">Carregando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                <div class="table-container">
-                    <table id="table-auditoria">
-                        <thead>
-                            <tr>
-                                <th>Data/Hora</th>
-                                <th>Usuário</th>
-                                <th>Ação</th>
-                                <th>Detalhes</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </section>
 
-        </main>
+                <!-- ==================== AUDIT PANEL ==================== -->
+                <div id="panel-audit" class="panel view" style="display:none;">
+                    <div class="panel-header">
+                        <h2>Log de Auditoria</h2>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Admin</th>
+                                    <th>Ação</th>
+                                    <th>Detalhes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-auditoria">
+                                <tr>
+                                    <td colspan="4" class="table-empty">Nenhum registro de auditoria</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- ===================== MODAL CONTAINER ===================== -->
+    <!-- ==================== MODAL & DRAWERS ==================== -->
     <div id="modal-container"></div>
+    <div id="user-drawer-container"></div>
 
+    <!-- ==================== SCRIPTS ==================== -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/api.js"></script>
     <script src="js/app.js"></script>
