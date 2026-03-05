@@ -290,6 +290,7 @@ async function endAdminSession() {
 // ==================== EXPORT ====================
 window.SGE_API = {
     initSupabase,
+    db, // Exportado para uso pelo radar
     fetchActiveSessions,
     fetchAllUsers,
     fetchAllSectors,
