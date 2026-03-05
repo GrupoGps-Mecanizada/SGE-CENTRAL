@@ -140,10 +140,11 @@ window.SGE_SSO = {
             }
 
             const perfil = accessData.perfil_nome || 'GESTAO';
-            console.log(`[SGE SSO v4] ✓ AUTORIZADO | Perfil: ${perfil}`);
+            console.log(`[SGE SSO v5] ✓ AUTORIZADO | Perfil: ${perfil}`);
 
             // ═══ STEP 3: Generate SSO Token ═══
             const jwtPayload = {
+                ver: 5,
                 sub: authData.user.id,
                 user: {
                     id: authData.user.id,
