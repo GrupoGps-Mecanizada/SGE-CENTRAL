@@ -292,24 +292,55 @@
                     };
 
                     // Registrar sessão no banco para o Radar
+                    let sessionId = null;
                     try {
-                        const svcSupabase = window.supabase.createClient(supaUrl, anonKey, { db: { schema: 'gps_compartilhado' } });
+                        // Use the already-authenticated client (has user JWT from signInWithPassword)
+                        const authSupabase = window.supabase.createClient(supaUrl, anonKey, {
+                            db: { schema: 'gps_compartilhado' },
+                            global: {
+                                headers: {
+                                    'Authorization': `Bearer ${authData.session.access_token}`
+                                }
+                            }
+                        });
 
                         // Buscar sistema pelo slug
-                        const { data: sysData } = await svcSupabase.from('sge_central_sistemas').select('id').eq('slug', appSlug).single();
+                        const { data: sysData } = await authSupabase
+                            .from('sge_central_sistemas')
+                            .select('id')
+                            .eq('slug', appSlug)
+                            .single();
 
                         if (sysData) {
-                            await svcSupabase.from('sge_central_sessoes').insert({
-                                usuario_id: authData.user.id,
-                                sistema_id: sysData.id,
-                                ip_address: '0.0.0.0',
-                                user_agent: navigator.userAgent,
-                                expira_em: new Date(Date.now() + (1000 * 60 * 60 * 8)).toISOString()
-                            });
+                            const { data: sessData, error: sessErr } = await authSupabase
+                                .from('sge_central_sessoes')
+                                .insert({
+                                    usuario_id: authData.user.id,
+                                    sistema_id: sysData.id,
+                                    ip_address: '0.0.0.0',
+                                    user_agent: navigator.userAgent.substring(0, 200),
+                                    expira_em: new Date(Date.now() + (1000 * 60 * 60 * 8)).toISOString()
+                                })
+                                .select('id')
+                                .single();
+
+                            if (sessErr) {
+                                console.warn('[SGE SSO] Session insert error:', sessErr.message);
+                            } else {
+                                sessionId = sessData?.id;
+                                console.log('[SGE SSO] ✓ Sessão registrada:', sessionId);
+                            }
                         }
                     } catch (sessionErr) {
-                        console.warn('Sessão não registrada (RLS pode estar bloqueando):', sessionErr);
+                        console.warn('[SGE SSO] Sessão não registrada:', sessionErr);
                     }
+
+                    // Guardar dados de sessão para ping nos sistemas satélites
+                    try {
+                        localStorage.setItem('sge_session_id', sessionId || '');
+                        localStorage.setItem('sge_session_user_id', authData.user.id);
+                        localStorage.setItem('sge_session_token', authData.session.access_token);
+                    } catch (e) { /* localStorage pode falhar em incognito */ }
 
                     const payloadBase64 = btoa(JSON.stringify(jwtPayload));
                     const jwtToken = `eyJhbGciOiJIUzI1NiJ9.${payloadBase64}.sge_central_sig`;

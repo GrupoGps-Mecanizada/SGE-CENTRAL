@@ -12,22 +12,20 @@
  */
 const SUPABASE_PROJECT_URL = "https://mgcjidryrjqiceielmzp.supabase.co";
 
-let _allSystems = [];
+let _allSystems  = [];
 let _allProfiles = [];
-let _allSectors = [];
-let _serviceKey = '';
-let _sessionsInterval = null;
+let _allSectors  = [];
+let _serviceKey  = '';
 
 // ──────────────────────────────────────────────────────────
 // PANEL METADATA — títulos e subtítulos para o breadcrumb
 // ──────────────────────────────────────────────────────────
 const PANEL_META = {
-    sessions: { label: 'Radar de Sessões', sub: 'Monitoramento em tempo real' },
-    users: { label: 'Gestão de Identidade', sub: 'Usuários e permissões' },
-    'user-config': { label: 'Configuração de Usuário', sub: 'Acessos e permissões' },
-    sectors: { label: 'Setores / CRs', sub: 'Centros de resultado' },
-    systems: { label: 'Ecossistema SGE', sub: 'Sistemas registrados' },
-    audit: { label: 'Log de Auditoria', sub: 'Histórico de ações' },
+    sessions: { label: 'Radar de Sessões',      sub: 'Monitoramento em tempo real' },
+    users:    { label: 'Gestão de Identidade',   sub: 'Usuários e permissões'       },
+    sectors:  { label: 'Setores / CRs',          sub: 'Centros de resultado'        },
+    systems:  { label: 'Ecossistema SGE',         sub: 'Sistemas registrados'        },
+    audit:    { label: 'Log de Auditoria',        sub: 'Histórico de ações'          },
 };
 
 // ──────────────────────────────────────────────────────────
@@ -43,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('admin-login-view').classList.remove('hidden');
 
     const doLogin = async () => {
-        const key = document.getElementById('login-key').value.trim();
+        const key   = document.getElementById('login-key').value.trim();
         if (!key) return;
         _serviceKey = key;
         const errEl = document.getElementById('login-error');
@@ -54,7 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await window.SGE_API.fetchAllSectors();
-            await window.SGE_API.createAdminSession();
             document.getElementById('admin-login-view').classList.add('hidden');
             document.getElementById('dashboard-view').classList.remove('hidden');
             loadAllData();
@@ -67,16 +64,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('login-key').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
     // Logout
-    const doLogout = async () => {
-        await window.SGE_API.endAdminSession();
+    const doLogout = () => {
         window.SGE_API.initSupabase('', '');
         document.getElementById('login-key').value = '';
         document.getElementById('dashboard-view').classList.add('hidden');
         document.getElementById('admin-login-view').classList.remove('hidden');
-        if (_sessionsInterval) {
-            clearInterval(_sessionsInterval);
-            _sessionsInterval = null;
-        }
         closeNav();
     };
     document.getElementById('btn-logout').addEventListener('click', doLogout);
@@ -95,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // CRUD buttons
-    document.getElementById('btn-create-user').addEventListener('click', showModalNewUser);
+    document.getElementById('btn-create-user').addEventListener('click',   showModalNewUser);
     document.getElementById('btn-create-sector').addEventListener('click', showModalNewSector);
     document.getElementById('btn-create-system').addEventListener('click', showModalNewSystem);
 });
@@ -126,19 +118,19 @@ function switchPanel(panelId) {
  * Atualiza o breadcrumb dinâmico no centro do topbar
  */
 function updateBreadcrumb(panelId) {
-    const meta = PANEL_META[panelId] || {};
-    const logoEl = document.querySelector('.topbar-logo');
+    const meta    = PANEL_META[panelId] || {};
+    const logoEl  = document.querySelector('.topbar-logo');
     if (!logoEl) return;
 
     // Animate out → in
-    logoEl.style.opacity = '0';
+    logoEl.style.opacity   = '0';
     logoEl.style.transform = 'translateX(-50%) translateY(4px)';
     setTimeout(() => {
-        logoEl.querySelector('.logo-gps').textContent = 'GRUPO GPS';
+        logoEl.querySelector('.logo-gps').textContent    = 'GRUPO GPS';
         logoEl.querySelector('.logo-system').textContent = meta.label || 'CENTRAL SGE';
         logoEl.style.transition = 'opacity .2s, transform .2s';
-        logoEl.style.opacity = '1';
-        logoEl.style.transform = 'translateX(-50%) translateY(0)';
+        logoEl.style.opacity    = '1';
+        logoEl.style.transform  = 'translateX(-50%) translateY(0)';
     }, 120);
 }
 
@@ -165,7 +157,7 @@ function showModal(title, subtitle, formHtml) {
  * Classifica o tempo do último ping em categorias visuais
  */
 function pingClass(diffMins) {
-    if (diffMins <= 5) return 'ping-fresh';
+    if (diffMins <= 5)  return 'ping-fresh';
     if (diffMins <= 30) return 'ping-warning';
     return 'ping-stale';
 }
@@ -174,9 +166,9 @@ function pingClass(diffMins) {
  * Formata tempo relativo (ex: "há 2 min", "há 1 h")
  */
 function relativeTime(date) {
-    const diffMs = Date.now() - new Date(date).getTime();
+    const diffMs   = Date.now() - new Date(date).getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return 'agora mesmo';
+    if (diffMins < 1)  return 'agora mesmo';
     if (diffMins < 60) return `há ${diffMins} min`;
     const hrs = Math.floor(diffMins / 60);
     return hrs === 1 ? 'há 1 h' : `há ${hrs} h`;
@@ -186,9 +178,9 @@ function relativeTime(date) {
  * Anima um número contando de 0 até o valor final
  */
 function animateCounter(el, target, duration = 600) {
-    const start = Date.now();
+    const start   = Date.now();
     const initial = parseInt(el.textContent, 10) || 0;
-    const step = () => {
+    const step    = () => {
         const elapsed = Date.now() - start;
         const progress = Math.min(elapsed / duration, 1);
         // Ease out cubic
@@ -225,13 +217,6 @@ async function loadAllData() {
     updateBreadcrumb('sessions');
 
     loadSessions();
-    if (!_sessionsInterval) {
-        _sessionsInterval = setInterval(() => {
-            window.SGE_API.pingAdminSession();
-            loadSessions();
-        }, 10000);
-    }
-
     loadUsers();
     loadSectors();
     loadSystems();
@@ -244,7 +229,7 @@ async function loadAllData() {
 async function loadSessions() {
     try {
         const sessions = await window.SGE_API.fetchActiveSessions();
-        const tbody = document.getElementById('table-sessions');
+        const tbody    = document.getElementById('table-sessions');
         tbody.innerHTML = '';
 
         let online = 0, away = 0, offline = 0;
@@ -262,19 +247,14 @@ async function loadSessions() {
                 </tr>`;
         } else {
             sessions.forEach(s => {
-                if (s.status === 'online') online++;
+                if (s.status === 'online')  online++;
                 else if (s.status === 'away') away++;
                 else offline++;
 
                 const statusLabel = { online: 'Online', away: 'Ausente', offline: 'Offline' }[s.status] || s.status;
-                const diffMins = (now - new Date(s.ultimo_ping_em)) / 60000;
-                const pClass = pingClass(diffMins);
-                const relTime = relativeTime(s.ultimo_ping_em);
-
-                const isAdmin = s.user_agent === 'Painel Central SGE' || (!s.usuarios && !s.sistemas);
-                const uNome = s.usuarios?.nome || (isAdmin ? 'Administrador Governança' : 'N/A');
-                const uEmail = s.usuarios?.email || (isAdmin ? 'Acesso via Service Key' : '');
-                const sNome = s.sistemas?.nome || (isAdmin ? 'Painel Central SGE (Gestão)' : 'N/A');
+                const diffMins    = (now - new Date(s.ultimo_ping_em)) / 60000;
+                const pClass      = pingClass(diffMins);
+                const relTime     = relativeTime(s.ultimo_ping_em);
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -285,11 +265,11 @@ async function loadSessions() {
                         </span>
                     </td>
                     <td>
-                        <strong>${uNome}</strong><br>
-                        <small style="color:var(--text-3); font-size:11px;">${uEmail}</small>
+                        <strong>${s.usuarios?.nome || 'N/A'}</strong><br>
+                        <small style="color:var(--text-3); font-size:11px;">${s.usuarios?.email || ''}</small>
                     </td>
                     <td>
-                        <span style="font-weight:500; color:var(--text-2);">${sNome}</span>
+                        <span style="font-weight:500; color:var(--text-2);">${s.sistemas?.nome || 'N/A'}</span>
                     </td>
                     <td><code>${s.ip_address || '—'}</code></td>
                     <td>
@@ -303,8 +283,8 @@ async function loadSessions() {
         }
 
         // Animate KPI counters
-        animateCounter(document.getElementById('kpi-online'), online);
-        animateCounter(document.getElementById('kpi-away'), away);
+        animateCounter(document.getElementById('kpi-online'),  online);
+        animateCounter(document.getElementById('kpi-away'),    away);
         animateCounter(document.getElementById('kpi-offline'), offline);
 
         // Update "last updated" timestamp
@@ -378,7 +358,7 @@ function renderUsersTable(users) {
                 </div>
             </td>
         `;
-        tr.querySelector('.btn-config-user').addEventListener('click', () => openUserConfig(u));
+        tr.querySelector('.btn-config-user').addEventListener('click',  () => openUserDrawer(u));
         tr.querySelector('.btn-toggle-user').addEventListener('click', () => toggleUserStatus(u.id, u.is_active));
         tbody.appendChild(tr);
     });
@@ -386,7 +366,7 @@ function renderUsersTable(users) {
 
 // Busca em tempo real na tabela de usuários
 function filterUsersTable(query) {
-    const q = (query || '').toLowerCase().trim();
+    const q    = (query || '').toLowerCase().trim();
     const rows = document.querySelectorAll('#table-users tr[data-search]');
     rows.forEach(tr => {
         tr.style.display = !q || tr.dataset.search.includes(q) ? '' : 'none';
@@ -448,12 +428,12 @@ async function loadSystems() {
                 <td>${statusBadge}</td>
                 <td>
                     ${i.url_origem
-                    ? `<a href="${i.url_origem}" target="_blank"
+                        ? `<a href="${i.url_origem}" target="_blank"
                             style="font-size:12px; color:var(--accent); font-weight:500;
                                    text-decoration:none; display:inline-flex; align-items:center; gap:3px;">
                             ↗ Acessar
                            </a>`
-                    : '<span style="color:var(--text-3)">—</span>'}
+                        : '<span style="color:var(--text-3)">—</span>'}
                 </td>
                 <td>
                     <button class="btn-secondary btn-sm btn-toggle-sys">
@@ -472,7 +452,7 @@ async function loadSystems() {
 // ──────────────────────────────────────────────────────────
 async function loadAuditLogs() {
     try {
-        const logs = await window.SGE_API.fetchAuditLogs();
+        const logs  = await window.SGE_API.fetchAuditLogs();
         const tbody = document.getElementById('table-auditoria');
         tbody.innerHTML = '';
 
@@ -513,10 +493,10 @@ async function loadAuditLogs() {
 }
 
 // ──────────────────────────────────────────────────────────
-// RBAC USER CONFIG
+// RBAC USER DRAWER
 // ──────────────────────────────────────────────────────────
-async function openUserConfig(user) {
-    let userAccess = [];
+async function openUserDrawer(user) {
+    let userAccess  = [];
     let userSectors = [];
 
     try {
@@ -524,9 +504,9 @@ async function openUserConfig(user) {
             window.SGE_API.fetchUserAccess(user.id),
             window.SGE_API.fetchUserSectors(user.id)
         ]);
-    } catch (e) { console.error('User config data:', e); }
+    } catch (e) { console.error('User drawer data:', e); }
 
-    const container = document.getElementById('user-config-body');
+    const container  = document.getElementById('user-drawer-container');
     const statusBadge = user.is_active
         ? '<span class="status-badge active" style="margin-left:6px; font-size:11px;">Ativo</span>'
         : '<span class="status-badge blocked" style="margin-left:6px; font-size:11px;">Bloqueado</span>';
@@ -567,85 +547,94 @@ async function openUserConfig(user) {
         `).join('')
         : `<span style="color:var(--text-3); font-size:12px;">Nenhum setor atribuído</span>`;
 
-    const grantedSystemIds = userAccess.map(a => a.sistema_id);
-    const availableSystems = _allSystems.filter(s => !grantedSystemIds.includes(s.id));
+    const grantedSystemIds  = userAccess.map(a => a.sistema_id);
+    const availableSystems  = _allSystems.filter(s => !grantedSystemIds.includes(s.id));
     const assignedSectorIds = userSectors.map(us => us.setor_id);
-    const availableSectors = _allSectors.filter(s => !assignedSectorIds.includes(s.id));
+    const availableSectors  = _allSectors.filter(s => !assignedSectorIds.includes(s.id));
 
     // Avatar initials
     const initials = (user.nome || '?').split(' ').map(n => n[0]).slice(0, 2).join('');
 
     container.innerHTML = `
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border);">
-            <!-- Avatar -->
-            <div style="
-                width:48px; height:48px; border-radius:50%; background:var(--accent-glow-md);
-                border:2px solid rgba(29,78,216,0.25); display:flex; align-items:center;
-                justify-content:center; font-size:16px; font-weight:800; color:var(--accent);
-                flex-shrink:0; letter-spacing:0.05em;">
-                ${initials}
-            </div>
-            <div>
-                <div style="display:flex; align-items:center; gap:4px;">
-                    <h3 style="font-size: 18px; margin: 0;">${user.nome}</h3>
-                    ${statusBadge}
+        <div class="user-drawer-overlay" id="user-drawer-overlay">
+            <div class="user-drawer" onclick="event.stopPropagation()">
+                <div class="user-drawer-header">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <!-- Avatar -->
+                        <div style="
+                            width:40px; height:40px; border-radius:50%; background:var(--accent-glow-md);
+                            border:2px solid rgba(29,78,216,0.25); display:flex; align-items:center;
+                            justify-content:center; font-size:13px; font-weight:800; color:var(--accent);
+                            flex-shrink:0; letter-spacing:0.05em;">
+                            ${initials}
+                        </div>
+                        <div>
+                            <div style="display:flex; align-items:center; gap:4px;">
+                                <h3>${user.nome}</h3>
+                                ${statusBadge}
+                            </div>
+                            <div style="font-size:11px; color:var(--text-3); margin-top:2px; font-family:'SF Mono',monospace;">${user.email}</div>
+                        </div>
+                    </div>
+                    <button class="topbar-icon-btn" id="close-user-drawer" title="Fechar">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
                 </div>
-                <div style="font-size:13px; color:var(--text-3); margin-top:4px; font-family:'SF Mono',monospace;">${user.email}</div>
-            </div>
-        </div>
+                <div class="user-drawer-body">
 
-        <div class="user-drawer-body" style="padding: 0; display: grid; gap: 24px; grid-template-columns: 1fr 1fr;">
-            <!-- SETORES -->
-            <div class="user-drawer-section" style="background: var(--bg-2); padding: 16px; border-radius: var(--radius); border: 1px solid var(--border);">
-                <h4>Setores Atribuídos</h4>
-                <div id="user-sectors-tags" style="padding: 2px 0 12px;">${sectorTagsHtml}</div>
-                ${availableSectors.length ? `
-                <div class="grant-row">
-                    <select id="add-sector-select">
-                        <option value="">Selecionar setor...</option>
-                        ${availableSectors.map(s => `<option value="${s.id}">${s.sigla} — ${s.nome}</option>`).join('')}
-                    </select>
-                    <button class="btn-primary btn-sm" id="btn-add-sector">Adicionar</button>
-                </div>` : `
-                <div style="color:var(--green); font-size:12px; margin-top:8px; font-weight:600;">
-                    ✓ Todos os setores atribuídos
-                </div>`}
-            </div>
+                    <!-- SETORES -->
+                    <div class="user-drawer-section">
+                        <h4>Setores Atribuídos</h4>
+                        <div id="user-sectors-tags" style="padding: 2px 0 4px;">${sectorTagsHtml}</div>
+                        ${availableSectors.length ? `
+                        <div class="grant-row">
+                            <select id="add-sector-select">
+                                <option value="">Selecionar setor...</option>
+                                ${availableSectors.map(s => `<option value="${s.id}">${s.sigla} — ${s.nome}</option>`).join('')}
+                            </select>
+                            <button class="btn-primary btn-sm" id="btn-add-sector">Adicionar</button>
+                        </div>` : `
+                        <div style="color:var(--green); font-size:11px; margin-top:8px; font-weight:600;">
+                            ✓ Todos os setores atribuídos
+                        </div>`}
+                    </div>
 
-            <!-- ACESSOS RBAC -->
-            <div class="user-drawer-section" style="background: var(--bg-2); padding: 16px; border-radius: var(--radius); border: 1px solid var(--border);">
-                <h4>Acesso aos Sistemas · RBAC</h4>
-                <div id="user-access-list" style="margin-bottom: 12px;">${accessHtml}</div>
-                ${availableSystems.length ? `
-                <div class="grant-row" style="flex-wrap:wrap;">
-                    <select id="grant-system-select" style="flex:1; min-width:120px;">
-                        <option value="">Selecionar sistema...</option>
-                        ${availableSystems.map(s => `<option value="${s.id}">${s.nome}</option>`).join('')}
-                    </select>
-                    <select id="grant-profile-select" style="flex:1; min-width:120px;">
-                        ${_allProfiles.map(p => `<option value="${p.id}">${p.nome} · nv.${p.nivel}</option>`).join('')}
-                    </select>
-                    <button class="btn-primary btn-sm" id="btn-grant-access">Conceder</button>
-                </div>` : `
-                <div style="color:var(--green); font-size:12px; margin-top:10px; font-weight:600;">
-                    ✓ Acesso a todos os sistemas configurado
-                </div>`}
+                    <!-- ACESSOS RBAC -->
+                    <div class="user-drawer-section">
+                        <h4>Acesso aos Sistemas · RBAC</h4>
+                        <div id="user-access-list">${accessHtml}</div>
+                        ${availableSystems.length ? `
+                        <div class="grant-row" style="flex-wrap:wrap;">
+                            <select id="grant-system-select" style="flex:1; min-width:120px;">
+                                <option value="">Selecionar sistema...</option>
+                                ${availableSystems.map(s => `<option value="${s.id}">${s.nome}</option>`).join('')}
+                            </select>
+                            <select id="grant-profile-select" style="flex:1; min-width:120px;">
+                                ${_allProfiles.map(p => `<option value="${p.id}">${p.nome} · nv.${p.nivel}</option>`).join('')}
+                            </select>
+                            <button class="btn-primary btn-sm" id="btn-grant-access">Conceder</button>
+                        </div>` : `
+                        <div style="color:var(--green); font-size:11px; margin-top:10px; font-weight:600;">
+                            ✓ Acesso a todos os sistemas configurado
+                        </div>`}
+                    </div>
+                </div>
             </div>
         </div>
     `;
 
     // ── Event Listeners ──
+    document.getElementById('close-user-drawer').addEventListener('click', closeUserDrawer);
+    document.getElementById('user-drawer-overlay').addEventListener('click', e => {
+        if (e.target.id === 'user-drawer-overlay') closeUserDrawer();
+    });
+
     container.querySelectorAll('.profile-select').forEach(select => {
         select.addEventListener('change', async () => {
-            try {
-                await window.SGE_API.updateAccessProfile(select.dataset.accessId, select.value);
-                await window.SGE_API.insertAuditLog('ALTERAR_PERFIL_ACESSO', {
-                    usuario_id: user.id,
-                    access_id: select.dataset.accessId,
-                    novo_perfil_id: select.value
-                });
-                loadAuditLogs();
-            }
+            try { await window.SGE_API.updateAccessProfile(select.dataset.accessId, select.value); }
             catch (err) { alert('Erro ao alterar perfil: ' + err.message); }
         });
     });
@@ -655,12 +644,7 @@ async function openUserConfig(user) {
             const isActive = btn.dataset.currentActive === 'true';
             try {
                 await window.SGE_API.toggleAccessActive(btn.dataset.toggleAccessId, !isActive);
-                await window.SGE_API.insertAuditLog(!isActive ? 'ATIVAR_ACESSO' : 'DESATIVAR_ACESSO', {
-                    usuario_id: user.id,
-                    access_id: btn.dataset.toggleAccessId
-                });
-                loadAuditLogs();
-                openUserConfig(user);
+                openUserDrawer(user);
             } catch (err) { alert('Erro: ' + err.message); }
         });
     });
@@ -670,12 +654,7 @@ async function openUserConfig(user) {
             if (!confirm('Revogar permanentemente o acesso a este sistema?')) return;
             try {
                 await window.SGE_API.revokeSystemAccess(btn.dataset.revokeAccessId);
-                await window.SGE_API.insertAuditLog('REVOGAR_ACESSO', {
-                    usuario_id: user.id,
-                    access_id: btn.dataset.revokeAccessId
-                });
-                loadAuditLogs();
-                openUserConfig(user);
+                openUserDrawer(user);
             } catch (err) { alert('Erro: ' + err.message); }
         });
     });
@@ -685,12 +664,7 @@ async function openUserConfig(user) {
             if (!confirm('Remover este setor do usuário?')) return;
             try {
                 await window.SGE_API.removeUserSector(user.id, btn.dataset.setorId);
-                await window.SGE_API.insertAuditLog('REMOVER_SETOR_USUARIO', {
-                    usuario_id: user.id,
-                    setor_id: btn.dataset.setorId
-                });
-                loadAuditLogs();
-                openUserConfig(user);
+                openUserDrawer(user);
             } catch (err) { alert('Erro: ' + err.message); }
         });
     });
@@ -699,17 +673,11 @@ async function openUserConfig(user) {
     if (grantBtn) {
         grantBtn.addEventListener('click', async () => {
             const sistemaId = document.getElementById('grant-system-select').value;
-            const perfilId = document.getElementById('grant-profile-select').value;
+            const perfilId  = document.getElementById('grant-profile-select').value;
             if (!sistemaId) { alert('Selecione um sistema.'); return; }
             try {
                 await window.SGE_API.grantSystemAccess(user.id, sistemaId, perfilId);
-                await window.SGE_API.insertAuditLog('CONCEDER_ACESSO_SISTEMA', {
-                    usuario_id: user.id,
-                    sistema_id: sistemaId,
-                    perfil_id: perfilId
-                });
-                loadAuditLogs();
-                openUserConfig(user);
+                openUserDrawer(user);
             } catch (err) { alert('Erro: ' + err.message); }
         });
     }
@@ -721,34 +689,28 @@ async function openUserConfig(user) {
             if (!setorId) { alert('Selecione um setor.'); return; }
             try {
                 await window.SGE_API.addUserSector(user.id, setorId);
-                await window.SGE_API.insertAuditLog('ADICIONAR_SETOR_USUARIO', {
-                    usuario_id: user.id,
-                    setor_id: setorId
-                });
-                loadAuditLogs();
-                openUserConfig(user);
+                openUserDrawer(user);
             } catch (err) { alert('Erro: ' + err.message); }
         });
     }
-
-    switchPanel('user-config');
 }
 
+function closeUserDrawer() {
+    document.getElementById('user-drawer-container').innerHTML = '';
+}
 
 // ──────────────────────────────────────────────────────────
 // CRUD ACTIONS
 // ──────────────────────────────────────────────────────────
 async function toggleUserStatus(id, currentActive) {
     const action = currentActive ? 'BLOQUEAR' : 'ATIVAR';
-    const msg = `Deseja ${action} este usuário?\n\n${currentActive
+    const msg    = `Deseja ${action} este usuário?\n\n${currentActive
         ? 'Isso irá impedir o acesso a todos os sistemas do ecossistema SGE.'
         : 'O usuário voltará a ter acesso conforme suas permissões RBAC.'}`;
     if (!confirm(msg)) return;
 
     try {
         await window.SGE_API.updateUser(id, { is_active: !currentActive });
-        await window.SGE_API.insertAuditLog(action, { usuario_id: id });
-        loadAuditLogs();
 
         // Attempt to sync Supabase Auth ban
         try {
@@ -776,8 +738,6 @@ async function toggleSystemStatus(id, currentActive) {
     if (!confirm(`Deseja ${currentActive ? 'DESATIVAR' : 'ATIVAR'} este sistema?`)) return;
     try {
         await window.SGE_API.updateSystem(id, { is_active: !currentActive });
-        await window.SGE_API.insertAuditLog(currentActive ? 'DESATIVAR_SISTEMA' : 'ATIVAR_SISTEMA', { sistema_id: id });
-        loadAuditLogs();
         _allSystems = await window.SGE_API.fetchAllSystems();
         loadSystems();
     } catch (e) { alert('Erro: ' + e.message); }
@@ -813,14 +773,12 @@ function showModalNewUser() {
         </form>
     `);
     document.getElementById('btn-submit-user').addEventListener('click', async () => {
-        const nome = document.getElementById('mu-nome').value.trim();
+        const nome  = document.getElementById('mu-nome').value.trim();
         const email = document.getElementById('mu-email').value.trim();
         const senha = document.getElementById('mu-senha').value.trim();
         if (!nome || !email || !senha) { alert('Preencha todos os campos.'); return; }
         try {
-            const newUser = await window.SGE_API.createUser({ nome, email, senha_hash: senha, is_active: true });
-            await window.SGE_API.insertAuditLog('CRIAR_USUARIO', { email, nome });
-            loadAuditLogs();
+            await window.SGE_API.createUser({ nome, email, senha_hash: senha, is_active: true });
             closeModal();
             loadUsers();
         } catch (err) { alert('Erro: ' + err.message); }
@@ -850,7 +808,7 @@ function showModalNewSector() {
     `);
     document.getElementById('btn-submit-sector').addEventListener('click', async () => {
         const sigla = document.getElementById('ms-sigla').value.trim().toUpperCase();
-        const nome = document.getElementById('ms-nome').value.trim();
+        const nome  = document.getElementById('ms-nome').value.trim();
         if (!sigla || !nome) { alert('Preencha sigla e nome.'); return; }
         try {
             await window.SGE_API.createSector({
@@ -858,8 +816,6 @@ function showModalNewSector() {
                 descricao: document.getElementById('ms-desc').value.trim(),
                 is_active: true
             });
-            await window.SGE_API.insertAuditLog('CRIAR_SETOR', { sigla, nome });
-            loadAuditLogs();
             closeModal();
             _allSectors = await window.SGE_API.fetchAllSectors();
             loadSectors();
@@ -898,8 +854,6 @@ function showModalNewSystem() {
                 url_origem: document.getElementById('msys-url').value.trim(),
                 is_active: true
             });
-            await window.SGE_API.insertAuditLog('CRIAR_SISTEMA', { slug, nome });
-            loadAuditLogs();
             closeModal();
             _allSystems = await window.SGE_API.fetchAllSystems();
             loadSystems();

@@ -32,7 +32,7 @@ async function fetchActiveSessions() {
     const { data, error } = await db()
         .from('sge_central_sessoes')
         .select(`
-            id, ultimo_ping_em, ip_address, sistema_id, usuario_id,
+            id, ultimo_ping_em, ip_address, sistema_id, usuario_id, user_agent,
             usuarios:sge_central_usuarios!sge_central_sessoes_usuario_id_fkey(nome, email),
             sistemas:sge_central_sistemas!sge_central_sessoes_sistema_id_fkey(nome)
         `)
@@ -236,6 +236,57 @@ async function revokeSession(id) {
     if (error) throw error;
 }
 
+// ==================== AUDITORIA E SESSÃO ADMIN ====================
+
+async function insertAuditLog(acao, detalhes) {
+    const { error } = await db()
+        .from('sge_central_auditoria')
+        .insert({
+            acao,
+            detalhes,
+            realizado_em: new Date().toISOString()
+        });
+    if (error) {
+        console.warn('Falha persistindo log de auditoria:', error);
+    }
+}
+
+// Sessão Fake do admin
+let _adminSessionId = null;
+
+async function createAdminSession() {
+    const { data, error } = await db()
+        .from('sge_central_sessoes')
+        .insert({
+            ip_address: '127.0.0.1 (Admin)',
+            user_agent: 'Painel Central SGE',
+            expira_em: new Date(Date.now() + (1000 * 60 * 60 * 8)).toISOString()
+        })
+        .select('id')
+        .single();
+
+    if (!error && data) {
+        _adminSessionId = data.id;
+    }
+}
+
+async function pingAdminSession() {
+    if (!_adminSessionId) return;
+    await db()
+        .from('sge_central_sessoes')
+        .update({ ultimo_ping_em: new Date().toISOString() })
+        .eq('id', _adminSessionId);
+}
+
+async function endAdminSession() {
+    if (!_adminSessionId) return;
+    await db()
+        .from('sge_central_sessoes')
+        .update({ is_revoked: true })
+        .eq('id', _adminSessionId);
+    _adminSessionId = null;
+}
+
 // ==================== EXPORT ====================
 window.SGE_API = {
     initSupabase,
@@ -258,5 +309,9 @@ window.SGE_API = {
     createSector,
     createSystem,
     updateSystem,
-    revokeSession
+    revokeSession,
+    insertAuditLog,
+    createAdminSession,
+    pingAdminSession,
+    endAdminSession
 };

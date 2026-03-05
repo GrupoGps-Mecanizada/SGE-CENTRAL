@@ -8,8 +8,7 @@
     <!-- MELHORIA: preconnect para reduzir latência do Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="css/style.css" />
 </head>
 
@@ -23,18 +22,16 @@
     <!-- ==================== SSO LOGIN VIEW ==================== -->
     <div id="sso-view" class="hidden">
         <div class="login-box">
-            <div
-                style="display:flex; flex-direction:column; align-items:center; text-align:center; margin-bottom:28px; gap:4px;">
+            <div style="display:flex; flex-direction:column; align-items:center; text-align:center; margin-bottom:28px; gap:4px;">
                 <span class="brand-sub-title">Grupo GPS</span>
                 <span class="brand-big">CENTRAL SGE</span>
-                <div
-                    style="width:28px; height:2px; background:var(--accent); border-radius:2px; opacity:0.25; margin:4px 0 8px;">
-                </div>
+                <div style="width:28px; height:2px; background:var(--accent); border-radius:2px; opacity:0.25; margin:4px 0 8px;"></div>
                 <span class="brand-tag">Autenticação Centralizada</span>
             </div>
 
             <!-- Info do app de destino -->
-            <div id="sso-app-info" style="background:var(--bg-2); border:1.5px solid var(--border); border-radius:var(--radius);
+            <div id="sso-app-info"
+                style="background:var(--bg-2); border:1.5px solid var(--border); border-radius:var(--radius);
                        padding:10px 14px; margin-bottom:20px; font-size:12px; color:var(--text-2);
                        text-align:center; width:100%;">
                 Autenticando para: <strong id="sso-app-name" style="color:var(--accent);">—</strong>
@@ -68,13 +65,10 @@
     <!-- ==================== ADMIN LOGIN VIEW ==================== -->
     <div id="admin-login-view" class="hidden">
         <div class="login-box">
-            <div
-                style="display:flex; flex-direction:column; align-items:center; text-align:center; margin-bottom:28px; gap:4px;">
+            <div style="display:flex; flex-direction:column; align-items:center; text-align:center; margin-bottom:28px; gap:4px;">
                 <span class="brand-sub-title">Grupo GPS</span>
                 <span class="brand-big">CENTRAL SGE</span>
-                <div
-                    style="width:28px; height:2px; background:var(--accent); border-radius:2px; opacity:0.25; margin:4px 0 8px;">
-                </div>
+                <div style="width:28px; height:2px; background:var(--accent); border-radius:2px; opacity:0.25; margin:4px 0 8px;"></div>
                 <span class="brand-tag">Painel de Governança</span>
             </div>
 
@@ -82,12 +76,9 @@
             <div style="display:flex; align-items:center; gap:7px; background:var(--red-glow); border:1.5px solid var(--red-glow-md);
                         border-radius:var(--radius); padding:8px 12px; margin-bottom:20px; width:100%;">
                 <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="var(--red-light)" stroke-width="2">
-                    <path d="M8 1l7 14H1z" />
-                    <line x1="8" y1="6" x2="8" y2="9" />
-                    <circle cx="8" cy="12" r=".5" fill="var(--red-light)" />
+                    <path d="M8 1l7 14H1z"/><line x1="8" y1="6" x2="8" y2="9"/><circle cx="8" cy="12" r=".5" fill="var(--red-light)"/>
                 </svg>
-                <span style="font-size:11px; color:var(--red); font-weight:600;">Acesso restrito a
-                    administradores</span>
+                <span style="font-size:11px; color:var(--red); font-weight:600;">Acesso restrito a administradores</span>
             </div>
 
             <form onsubmit="return false;" autocomplete="off" style="width:100%;">
@@ -99,8 +90,8 @@
                     style="width:100%; justify-content:center; height:46px; font-size:14px; margin-top:4px;"
                     id="btn-login">
                     <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="7" width="10" height="8" rx="1" />
-                        <path d="M5 7V5a3 3 0 0 1 6 0v2" />
+                        <rect x="3" y="7" width="10" height="8" rx="1"/>
+                        <path d="M5 7V5a3 3 0 0 1 6 0v2"/>
                     </svg>
                     Entrar no Painel
                 </button>
@@ -137,8 +128,8 @@
                     <button id="btn-refresh-sessions" class="topbar-icon-btn" title="Atualizar sessões"
                         style="display:none;" onclick="loadSessions()">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="23 4 23 10 17 10" />
-                            <path d="M20.5 15a9 9 0 1 1-2.7-9.4L23 10" />
+                            <polyline points="23 4 23 10 17 10"/>
+                            <path d="M20.5 15a9 9 0 1 1-2.7-9.4L23 10"/>
                         </svg>
                     </button>
                     <button id="btn-logout" class="topbar-icon-btn" title="Sair">
@@ -236,10 +227,10 @@
                             <span class="last-updated" id="sessions-last-updated">—</span>
                             <div class="actions">
                                 <button class="btn-secondary btn-sm" onclick="loadSessions()" title="Atualizar">
-                                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
-                                        stroke-width="2.2">
-                                        <polyline points="23 4 23 10 17 10" />
-                                        <path d="M20.5 15a9 9 0 1 1-2.7-9.4L23 10" />
+                                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none"
+                                         stroke="currentColor" stroke-width="2.2">
+                                        <polyline points="23 4 23 10 17 10"/>
+                                        <path d="M20.5 15a9 9 0 1 1-2.7-9.4L23 10"/>
                                     </svg>
                                     Atualizar
                                 </button>
@@ -255,8 +246,7 @@
                             <span class="status-dot online" style="position:absolute; top:18px; right:16px;"></span>
                             <div class="stat-watermark" aria-hidden="true">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                                    <circle cx="12" cy="12" r="10" />
-                                    <path d="M12 6v6l4 2" />
+                                    <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
                                 </svg>
                             </div>
                         </div>
@@ -266,9 +256,7 @@
                             <span class="status-dot away" style="position:absolute; top:18px; right:16px;"></span>
                             <div class="stat-watermark" aria-hidden="true">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                                    <circle cx="12" cy="12" r="10" />
-                                    <line x1="12" y1="8" x2="12" y2="12" />
-                                    <circle cx="12" cy="16" r=".5" fill="currentColor" />
+                                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/>
                                 </svg>
                             </div>
                         </div>
@@ -278,9 +266,7 @@
                             <span class="status-dot offline" style="position:absolute; top:18px; right:16px;"></span>
                             <div class="stat-watermark" aria-hidden="true">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                                    <circle cx="12" cy="12" r="10" />
-                                    <line x1="8" y1="8" x2="16" y2="16" />
-                                    <line x1="16" y1="8" x2="8" y2="16" />
+                                    <circle cx="12" cy="12" r="10"/><line x1="8" y1="8" x2="16" y2="16"/><line x1="16" y1="8" x2="8" y2="16"/>
                                 </svg>
                             </div>
                         </div>
@@ -295,8 +281,7 @@
                                     <th>Sistema</th>
                                     <th>IP</th>
                                     <!-- MELHORIA: renomeado para Último Ping e com hint visual -->
-                                    <th title="Verde = ≤5 min · Amarelo = ≤30 min · Vermelho = >30 min">Último Ping ↕
-                                    </th>
+                                    <th title="Verde = ≤5 min · Amarelo = ≤30 min · Vermelho = >30 min">Último Ping ↕</th>
                                 </tr>
                             </thead>
                             <tbody id="table-sessions"></tbody>
@@ -312,16 +297,15 @@
                             <!-- MELHORIA: filtro de busca inline -->
                             <div class="search-input-wrap">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="11" cy="11" r="8" />
-                                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                                 </svg>
                                 <input type="text" class="search-input" id="search-users"
                                     placeholder="Buscar usuário..."
                                     oninput="filterTable(this.value, 'table-users', ['strong', 'td:nth-child(2)'])" />
                             </div>
                             <button class="btn-primary" id="btn-create-user">
-                                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor"
-                                    stroke-width="2.2">
+                                <svg viewBox="0 0 16 16" width="13" height="13" fill="none"
+                                     stroke="currentColor" stroke-width="2.2">
                                     <path d="M8 2v12M2 8h12" />
                                 </svg>
                                 Novo Usuário
@@ -343,33 +327,14 @@
                     </div>
                 </div>
 
-                <!-- ========== USER CONFIG PANEL ========== -->
-                <div id="panel-user-config" class="panel view">
-                    <div class="panel-header">
-                        <div style="display:flex; align-items:center; gap:12px;">
-                            <button class="topbar-icon-btn" onclick="switchPanel('users')" title="Voltar"
-                                style="margin-right:8px; border:1px solid var(--border); border-radius: var(--radius); width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18"
-                                    height="18">
-                                    <path d="M19 12H5M12 19l-7-7 7-7" />
-                                </svg>
-                            </button>
-                            <h2>Configuração de Usuário</h2>
-                        </div>
-                    </div>
-                    <div id="user-config-body"
-                        style="padding: 20px; background:var(--bg-1); border-radius:var(--radius); border:1px solid var(--border); margin-top:20px;">
-                    </div>
-                </div>
-
                 <!-- ========== SECTORS PANEL ========== -->
                 <div id="panel-sectors" class="panel view">
                     <div class="panel-header">
                         <h2>Setores / Centros de Resultado</h2>
                         <div class="actions">
                             <button class="btn-primary" id="btn-create-sector">
-                                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor"
-                                    stroke-width="2.2">
+                                <svg viewBox="0 0 16 16" width="13" height="13" fill="none"
+                                     stroke="currentColor" stroke-width="2.2">
                                     <path d="M8 2v12M2 8h12" />
                                 </svg>
                                 Novo Setor
@@ -397,8 +362,8 @@
                         <h2>Ecossistema SGE</h2>
                         <div class="actions">
                             <button class="btn-primary" id="btn-create-system">
-                                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor"
-                                    stroke-width="2.2">
+                                <svg viewBox="0 0 16 16" width="13" height="13" fill="none"
+                                     stroke="currentColor" stroke-width="2.2">
                                     <path d="M8 2v12M2 8h12" />
                                 </svg>
                                 Novo Sistema
@@ -465,8 +430,8 @@
          * Examina o textContent das células e esconde as rows que não batem.
          */
         function filterTable(query, tbodyId) {
-            const q = (query || '').toLowerCase().trim();
-            const rows = document.querySelectorAll(`#${tbodyId} tr`);
+            const q     = (query || '').toLowerCase().trim();
+            const rows  = document.querySelectorAll(`#${tbodyId} tr`);
             rows.forEach(tr => {
                 if (!tr.cells.length) return; // skip colspanned empty rows
                 const text = Array.from(tr.cells).map(c => c.textContent).join(' ').toLowerCase();
