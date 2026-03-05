@@ -92,6 +92,11 @@ body {
     z-index: 10000;
 }
 
+#sso-view.hidden,
+#admin-login-view.hidden {
+    display: none;
+}
+
 .login-box {
     background: #ffffff;
     border: 1px solid rgba(10, 47, 168, 0.12);
@@ -184,25 +189,30 @@ body {
 
 /* ===================== APP LAYOUT ===================== */
 #dashboard-view {
+    display: flex;
+    flex-direction: column;
     width: 100%;
     height: 100vh;
 }
 
 #app {
     display: flex;
-    height: 100%;
     flex-direction: column;
+    width: 100%;
+    height: 100%;
 }
 
 #main {
     flex: 1;
     overflow: hidden;
     position: relative;
+    width: 100%;
 }
 
 .view {
     display: none;
     height: 100%;
+    width: 100%;
     overflow: hidden
 }
 

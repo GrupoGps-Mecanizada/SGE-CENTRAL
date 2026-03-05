@@ -38,7 +38,7 @@ window.SGE_SSO = {
         console.log(`[SGE SSO] Redirect: ${this.redirectUrl || '(nenhum)'}`);
 
         // Show SSO view
-        document.getElementById('sso-view').style.display = 'flex';
+        document.getElementById('sso-view').classList.remove('hidden');
         document.getElementById('sso-app-name').textContent = this.appSlug.replace(/_/g, ' ').toUpperCase();
 
         // Setup form

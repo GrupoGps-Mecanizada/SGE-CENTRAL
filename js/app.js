@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ========== ADMIN PANEL MODE ==========
     const adminLoginView = document.getElementById('admin-login-view');
     const dashView = document.getElementById('dashboard-view');
-    adminLoginView.style.display = 'flex';
+    adminLoginView.classList.remove('hidden');
 
     // ========== LOGIN ==========
     const doLogin = async () => {
@@ -38,9 +38,8 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             // Test key validity
             await window.SGE_API.fetchAllSectors();
-            adminLoginView.style.display = 'none';
+            adminLoginView.classList.add('hidden');
             dashView.classList.remove('hidden');
-            dashView.style.display = 'flex';
             loadAllData();
         } catch (err) {
             errEl.textContent = 'Chave inválida ou sem permissão.';
@@ -58,8 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.SGE_API.initSupabase('', '');
         document.getElementById('login-key').value = '';
         dashView.classList.add('hidden');
-        dashView.style.display = 'none';
-        adminLoginView.style.display = 'flex';
+        adminLoginView.classList.remove('hidden');
         closeNav();
     };
     document.getElementById('btn-logout').addEventListener('click', doLogout);
@@ -100,12 +98,10 @@ function switchPanel(panelId) {
 
     document.querySelectorAll('#main > .panel').forEach(p => {
         p.classList.remove('active');
-        p.style.display = 'none';
     });
     const target = document.getElementById(`panel-${panelId}`);
     if (target) {
         target.classList.add('active');
-        target.style.display = 'flex';
     }
 }
 
