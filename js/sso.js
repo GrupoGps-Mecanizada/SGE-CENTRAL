@@ -9,7 +9,7 @@
 const SSO_SUPABASE_URL = "https://mgcjidryrjqiceielmzp.supabase.co";
 const SSO_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nY2ppZHJ5cmpxaWNlaWVsbXpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMjEwNzEsImV4cCI6MjA4NzY5NzA3MX0.UAKkzy5fMIkrlmnqz9E9KknUw9xhoYpa3f1ptRpOuAA";
 
-// Direct REST API helper — works with any schema
+// Direct REST API helper — queries public schema views
 async function ssoQuery(table, params) {
     const url = new URL(`${SSO_SUPABASE_URL}/rest/v1/${table}`);
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
@@ -18,8 +18,7 @@ async function ssoQuery(table, params) {
         headers: {
             'apikey': SSO_ANON_KEY,
             'Authorization': `Bearer ${SSO_ANON_KEY}`,
-            'Accept': 'application/vnd.pgrst.object+json',
-            'Accept-Profile': 'gps_compartilhado'
+            'Accept': 'application/vnd.pgrst.object+json'
         }
     });
 
@@ -93,8 +92,8 @@ window.SGE_SSO = {
 
             // ═══ STEP 2: RBAC via direct REST API (Accept-Profile: gps_compartilhado) ═══
 
-            // 2a. Is USER globally active?
-            const { data: userData, error: userErr } = await ssoQuery('sge_central_usuarios', {
+            // 2a. Is USER globally active? (uses public view)
+            const { data: userData, error: userErr } = await ssoQuery('v_sso_usuarios', {
                 'select': 'id,nome,is_active',
                 'id': `eq.${authData.user.id}`
             });
@@ -111,8 +110,8 @@ window.SGE_SSO = {
             }
             console.log(`[SGE SSO v4] ✓ Usuário ativo: ${userData.nome}`);
 
-            // 2b. Is SYSTEM active?
-            const { data: sysData, error: sysErr } = await ssoQuery('sge_central_sistemas', {
+            // 2b. Is SYSTEM active? (uses public view)
+            const { data: sysData, error: sysErr } = await ssoQuery('v_sso_sistemas', {
                 'select': 'id,nome',
                 'slug': `eq.${this.appSlug}`,
                 'is_active': 'eq.true'
@@ -124,9 +123,9 @@ window.SGE_SSO = {
             }
             console.log(`[SGE SSO v4] ✓ Sistema ativo: ${sysData.nome}`);
 
-            // 2c. Does USER have ACCESS?
-            const { data: accessData, error: accessErr } = await ssoQuery('sge_central_usuario_sistema_acesso', {
-                'select': 'id,is_active,perfil_id',
+            // 2c. Does USER have ACCESS? (uses v_sso_acesso view with perfil pre-joined)
+            const { data: accessData, error: accessErr } = await ssoQuery('v_sso_acesso', {
+                'select': 'id,is_active,perfil_nome',
                 'usuario_id': `eq.${authData.user.id}`,
                 'sistema_id': `eq.${sysData.id}`
             });
@@ -140,16 +139,7 @@ window.SGE_SSO = {
                 return;
             }
 
-            // Get profile name
-            let perfil = 'GESTAO';
-            if (accessData.perfil_id) {
-                const { data: perfilData } = await ssoQuery('sge_central_perfis', {
-                    'select': 'nome',
-                    'id': `eq.${accessData.perfil_id}`
-                });
-                if (perfilData) perfil = perfilData.nome;
-            }
-
+            const perfil = accessData.perfil_nome || 'GESTAO';
             console.log(`[SGE SSO v4] ✓ AUTORIZADO | Perfil: ${perfil}`);
 
             // ═══ STEP 3: Generate SSO Token ═══
