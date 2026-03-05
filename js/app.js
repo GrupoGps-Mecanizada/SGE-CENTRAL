@@ -16,7 +16,11 @@ let _allSystems = [];
 let _allProfiles = [];
 let _allSectors = [];
 let _serviceKey = '';
-let _sessionsInterval = null;
+let _radarChannel = null;   // Supabase Presence Channel
+let _radarSupabase = null;  // client separado com anon key
+
+const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nY2ppZHJ5cmpxaWNlaWVsbXpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMjEwNzEsImV4cCI6MjA4NzY5NzA3MX0.UAKkzy5fMIkrlmnqz9E9KknUw9xhoYpa3f1ptRpOuAA";
+const RADAR_CHANNEL = "sge-radar";
 
 // ──────────────────────────────────────────────────────────
 // PANEL METADATA — títulos e subtítulos para o breadcrumb
@@ -73,9 +77,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('login-key').value = '';
         document.getElementById('dashboard-view').classList.add('hidden');
         document.getElementById('admin-login-view').classList.remove('hidden');
-        if (_sessionsInterval) {
-            clearInterval(_sessionsInterval);
-            _sessionsInterval = null;
+        // Desconecta do canal de presença
+        if (_radarChannel && _radarSupabase) {
+            _radarSupabase.removeChannel(_radarChannel);
+            _radarChannel = null;
         }
         closeNav();
     };
@@ -221,16 +226,8 @@ async function loadAllData() {
         ]);
     } catch (e) { console.error('Reference data:', e); }
 
-    // Initialize breadcrumb for default panel
     updateBreadcrumb('sessions');
-
-    loadSessions();
-    if (!_sessionsInterval) {
-        _sessionsInterval = setInterval(() => {
-            window.SGE_API.pingAdminSession();
-            loadSessions();
-        }, 10000);
-    }
+    initRadarPresence();
 
     loadUsers();
     loadSectors();
@@ -239,79 +236,109 @@ async function loadAllData() {
 }
 
 // ──────────────────────────────────────────────────────────
-// SESSÕES — Radar em tempo real
+// RADAR — Presence Channel (tempo real, estilo Excel)
 // ──────────────────────────────────────────────────────────
-async function loadSessions() {
-    try {
-        const sessions = await window.SGE_API.fetchActiveSessions();
-        const tbody = document.getElementById('table-sessions');
-        tbody.innerHTML = '';
+function initRadarPresence() {
+    if (_radarChannel) return;
 
-        let online = 0, away = 0, offline = 0;
-        const now = new Date();
+    // Client dedicado ao canal de presença (anon key, sem auth ativa para evitar GoTrueClient duplo)
+    _radarSupabase = window.supabase.createClient(SUPABASE_PROJECT_URL, ANON_KEY, {
+        auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false,
+        },
+        realtime: { params: { eventsPerSecond: 10 } }
+    });
 
-        if (!sessions.length) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="5" class="table-empty">
-                        <div class="table-empty-inner">
-                            ${emptyStateSVG()}
-                            <span>Nenhuma sessão ativa no momento</span>
-                        </div>
-                    </td>
-                </tr>`;
-        } else {
-            sessions.forEach(s => {
-                if (s.status === 'online') online++;
-                else if (s.status === 'away') away++;
-                else offline++;
+    _radarChannel = _radarSupabase.channel(RADAR_CHANNEL);
 
-                const statusLabel = { online: 'Online', away: 'Ausente', offline: 'Offline' }[s.status] || s.status;
-                const diffMins = (now - new Date(s.ultimo_ping_em)) / 60000;
-                const pClass = pingClass(diffMins);
-                const relTime = relativeTime(s.ultimo_ping_em);
+    _radarChannel
+        .on('presence', { event: 'sync' }, () => {
+            const state = _radarChannel.presenceState();
+            renderRadar(state);
+        })
+        .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+            console.log('[Radar] Entrou:', newPresences[0]?.user_name);
+        })
+        .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+            console.log('[Radar] Saiu:', leftPresences[0]?.user_name);
+        })
+        .subscribe();
+}
 
-                const isAdmin = s.user_agent === 'Painel Central SGE' || (!s.usuarios && !s.sistemas);
-                const uNome = s.usuarios?.nome || (isAdmin ? 'Administrador Governança' : 'N/A');
-                const uEmail = s.usuarios?.email || (isAdmin ? 'Acesso via Service Key' : '');
-                const sNome = s.sistemas?.nome || (isAdmin ? 'Painel Central SGE (Gestão)' : 'N/A');
+// ──────────────────────────────────────────────────────────
+// SESSÕES — Radar renderizado via Presence Channel
+// ──────────────────────────────────────────────────────────
+function renderRadar(presenceState) {
+    const tbody = document.getElementById('table-sessions');
+    if (!tbody) return;
+    tbody.innerHTML = '';
 
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>
-                        <span class="status-badge ${s.status}">
-                            <span class="status-dot ${s.status}"></span>
-                            ${statusLabel}
-                        </span>
-                    </td>
-                    <td>
-                        <strong>${uNome}</strong><br>
-                        <small style="color:var(--text-3); font-size:11px;">${uEmail}</small>
-                    </td>
-                    <td>
-                        <span style="font-weight:500; color:var(--text-2);">${sNome}</span>
-                    </td>
-                    <td><code>${s.ip_address || '—'}</code></td>
-                    <td>
-                        <span class="${pClass}" title="${new Date(s.ultimo_ping_em).toLocaleString('pt-BR')}">
-                            ${relTime}
-                        </span>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
+    // presenceState é { key: [payload, ...], ... }
+    // Cada chave é um session_id; pega a última presença de cada uma
+    const presences = Object.values(presenceState).flatMap(arr => arr);
 
-        // Animate KPI counters
-        animateCounter(document.getElementById('kpi-online'), online);
-        animateCounter(document.getElementById('kpi-away'), away);
-        animateCounter(document.getElementById('kpi-offline'), offline);
+    let online = 0, away = 0;
 
-        // Update "last updated" timestamp
-        const lastUpdEl = document.getElementById('sessions-last-updated');
-        if (lastUpdEl) lastUpdEl.textContent = `Atualizado às ${new Date().toLocaleTimeString('pt-BR')}`;
+    if (!presences.length) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="table-empty">
+                    <div class="table-empty-inner">
+                        ${emptyStateSVG()}
+                        <span>Nenhuma sessão ativa no momento</span>
+                    </div>
+                </td>
+            </tr>`;
+    } else {
+        // Ordena: online primeiro, depois ausente, por app_name
+        presences.sort((a, b) => {
+            if (a.status === b.status) return (a.app_name || '').localeCompare(b.app_name || '');
+            return a.status === 'online' ? -1 : 1;
+        });
 
-    } catch (e) { console.error('Sessões:', e); }
+        presences.forEach(p => {
+            const status = p.status || 'online';
+            if (status === 'online') online++;
+            else away++;
+
+            const statusLabel = status === 'online' ? 'Online' : 'Ausente';
+            const entrou = p.entrou_em ? relativeTime(p.entrou_em) : '—';
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>
+                    <span class="status-badge ${status}">
+                        <span class="status-dot ${status}"></span>
+                        ${statusLabel}
+                    </span>
+                </td>
+                <td>
+                    <strong>${p.user_name || 'Usuário SGE'}</strong><br>
+                    <small style="color:var(--text-3); font-size:11px;">${p.user_email || ''}</small>
+                </td>
+                <td>
+                    <span style="font-weight:500; color:var(--text-2);">${p.app_name || p.app_slug || '—'}</span>
+                </td>
+                <td><code style="font-size:11px;">${p.url || '—'}</code></td>
+                <td>
+                    <span class="ping-fresh" title="Sessão iniciada: ${p.entrou_em || ''}">
+                        ${entrou}
+                    </span>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // KPIs — offline sempre 0 pois quem saiu some do canal
+    animateCounter(document.getElementById('kpi-online'), online);
+    animateCounter(document.getElementById('kpi-away'), away);
+    animateCounter(document.getElementById('kpi-offline'), 0);
+
+    const lastUpdEl = document.getElementById('sessions-last-updated');
+    if (lastUpdEl) lastUpdEl.textContent = `Atualizado às ${new Date().toLocaleTimeString('pt-BR')}`;
 }
 
 // ──────────────────────────────────────────────────────────

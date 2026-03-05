@@ -294,52 +294,62 @@
                     // Registrar sessão no banco para o Radar
                     let sessionId = null;
                     try {
-                        // Use the already-authenticated client (has user JWT from signInWithPassword)
-                        const authSupabase = window.supabase.createClient(supaUrl, anonKey, {
-                            db: { schema: 'gps_compartilhado' },
-                            global: {
-                                headers: {
-                                    'Authorization': `Bearer ${authData.session.access_token}`
+                        if (appSlug !== 'sge_hub') {
+                            // Use the already-authenticated client (has user JWT from signInWithPassword)
+                            const authSupabase = window.supabase.createClient(supaUrl, anonKey, {
+                                db: { schema: 'gps_compartilhado' },
+                                global: {
+                                    headers: {
+                                        'Authorization': `Bearer ${authData.session.access_token}`
+                                    }
                                 }
-                            }
-                        });
+                            });
 
-                        // Buscar sistema pelo slug
-                        const { data: sysData } = await authSupabase
-                            .from('sge_central_sistemas')
-                            .select('id')
-                            .eq('slug', appSlug)
-                            .single();
-
-                        if (sysData) {
-                            const { data: sessData, error: sessErr } = await authSupabase
-                                .from('sge_central_sessoes')
-                                .insert({
-                                    usuario_id: authData.user.id,
-                                    sistema_id: sysData.id,
-                                    ip_address: '0.0.0.0',
-                                    user_agent: navigator.userAgent.substring(0, 200),
-                                    expira_em: new Date(Date.now() + (1000 * 60 * 60 * 8)).toISOString()
-                                })
+                            // Buscar sistema pelo slug
+                            const { data: sysData } = await authSupabase
+                                .from('sge_central_sistemas')
                                 .select('id')
+                                .eq('slug', appSlug)
                                 .single();
 
-                            if (sessErr) {
-                                console.warn('[SGE SSO] Session insert error:', sessErr.message);
-                            } else {
-                                sessionId = sessData?.id;
-                                console.log('[SGE SSO] ✓ Sessão registrada:', sessionId);
+                            if (sysData) {
+                                const { data: sessData, error: sessErr } = await authSupabase
+                                    .from('sge_central_sessoes')
+                                    .insert({
+                                        usuario_id: authData.user.id,
+                                        sistema_id: sysData.id,
+                                        ip_address: '0.0.0.0',
+                                        user_agent: navigator.userAgent.substring(0, 200),
+                                        expira_em: new Date(Date.now() + (1000 * 60 * 60 * 8)).toISOString()
+                                    })
+                                    .select('id')
+                                    .single();
+
+                                if (sessErr) {
+                                    console.warn('[SGE SSO] Session insert error:', sessErr.message);
+                                } else {
+                                    sessionId = sessData?.id;
+                                    console.log('[SGE SSO] ✓ Sessão registrada:', sessionId);
+                                }
                             }
+                        } else {
+                            console.log('[SGE SSO] Login na Central (sge_hub) - Não registra no Radar');
                         }
                     } catch (sessionErr) {
                         console.warn('[SGE SSO] Sessão não registrada:', sessionErr);
                     }
 
-                    // Guardar dados de sessão para ping nos sistemas satélites
+                    // Guardar dados de sessão para presença nos sistemas satélites
                     try {
+                        const meta = authData.user.user_metadata || {};
+                        const userName = meta.full_name || meta.nome || email.split('@')[0];
                         localStorage.setItem('sge_session_id', sessionId || '');
                         localStorage.setItem('sge_session_user_id', authData.user.id);
                         localStorage.setItem('sge_session_token', authData.session.access_token);
+                        localStorage.setItem('sge_session_user_name', userName);
+                        localStorage.setItem('sge_session_user_email', email);
+                        localStorage.setItem('sge_session_app_slug', appSlug);
+                        localStorage.setItem('sge_session_app_name', appSlug.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
                     } catch (e) { /* localStorage pode falhar em incognito */ }
 
                     const payloadBase64 = btoa(JSON.stringify(jwtPayload));

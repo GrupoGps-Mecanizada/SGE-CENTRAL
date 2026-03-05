@@ -162,36 +162,44 @@ window.SGE_SSO = {
 
             // ═══ STEP 3b: Register session for Radar ═══
             try {
-                const authSupabase = window.supabase.createClient(SSO_SUPABASE_URL, SSO_ANON_KEY, {
-                    db: { schema: 'gps_compartilhado' },
-                    global: {
-                        headers: {
-                            'Authorization': `Bearer ${authData.session.access_token}`
+                if (this.appSlug !== 'sge_hub') {
+                    const authSupabase = window.supabase.createClient(SSO_SUPABASE_URL, SSO_ANON_KEY, {
+                        db: { schema: 'gps_compartilhado' },
+                        global: {
+                            headers: {
+                                'Authorization': `Bearer ${authData.session.access_token}`
+                            }
                         }
+                    });
+
+                    const { data: sessData, error: sessErr } = await authSupabase
+                        .from('sge_central_sessoes')
+                        .insert({
+                            usuario_id: authData.user.id,
+                            sistema_id: sysData.id,
+                            ip_address: '0.0.0.0',
+                            user_agent: navigator.userAgent.substring(0, 200),
+                            expira_em: new Date(Date.now() + (1000 * 60 * 60 * 8)).toISOString()
+                        })
+                        .select('id')
+                        .single();
+
+                    if (!sessErr && sessData) {
+                        console.log(`[SGE SSO v5] ✓ Sessão registrada: ${sessData.id}`);
+                        try {
+                            localStorage.setItem('sge_session_id', sessData.id);
+                            localStorage.setItem('sge_session_user_id', authData.user.id);
+                            localStorage.setItem('sge_session_token', authData.session.access_token);
+                            localStorage.setItem('sge_session_user_name', userData.nome || email.split('@')[0]);
+                            localStorage.setItem('sge_session_user_email', email);
+                            localStorage.setItem('sge_session_app_slug', this.appSlug);
+                            localStorage.setItem('sge_session_app_name', sysData.nome || this.appSlug);
+                        } catch (e) { /* localStorage fail safe */ }
+                    } else {
+                        console.warn('[SGE SSO v5] Session insert warning:', sessErr?.message);
                     }
-                });
-
-                const { data: sessData, error: sessErr } = await authSupabase
-                    .from('sge_central_sessoes')
-                    .insert({
-                        usuario_id: authData.user.id,
-                        sistema_id: sysData.id,
-                        ip_address: '0.0.0.0',
-                        user_agent: navigator.userAgent.substring(0, 200),
-                        expira_em: new Date(Date.now() + (1000 * 60 * 60 * 8)).toISOString()
-                    })
-                    .select('id')
-                    .single();
-
-                if (!sessErr && sessData) {
-                    console.log(`[SGE SSO v5] ✓ Sessão registrada: ${sessData.id}`);
-                    try {
-                        localStorage.setItem('sge_session_id', sessData.id);
-                        localStorage.setItem('sge_session_user_id', authData.user.id);
-                        localStorage.setItem('sge_session_token', authData.session.access_token);
-                    } catch (e) { /* localStorage fail safe */ }
                 } else {
-                    console.warn('[SGE SSO v5] Session insert warning:', sessErr?.message);
+                    console.log('[SGE SSO v5] Login na Central (sge_hub) - Não registra no Radar');
                 }
             } catch (sessRegErr) {
                 console.warn('[SGE SSO v5] Session registration failed:', sessRegErr);
