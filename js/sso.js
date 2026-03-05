@@ -1,28 +1,63 @@
 /**
- * CENTRAL SGE — SSO Authentication Handler
+ * CENTRAL SGE — SSO Authentication Handler v4
  * Grupo GPS · Autenticação Centralizada · RBAC Enforcement
  * 
- * Fluxo:
- *   1. Sistema satélite redireciona → index.html?app_slug=X&redirect=Y
- *   2. Usuário loga com email/senha via Supabase Auth
- *   3. Valida 3 camadas de RBAC via views públicas:
- *      a) Usuário ATIVO? (v_sso_usuarios.is_active = true)
- *      b) Sistema ATIVO? (v_sso_sistemas.is_active = true)
- *      c) Acesso CONCEDIDO? (v_sso_acesso.is_active = true)
- *   4. Se tudo OK → gera token SSO e redireciona de volta
- *   5. Se QUALQUER verificação falhar → mostra tela de "Acesso Negado"
+ * Usa fetch() direto na REST API do Supabase com header Accept-Profile
+ * para acessar o schema gps_compartilhado sem depender do Supabase JS client.
  */
 
 const SSO_SUPABASE_URL = "https://mgcjidryrjqiceielmzp.supabase.co";
 const SSO_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nY2ppZHJ5cmpxaWNlaWVsbXpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMjEwNzEsImV4cCI6MjA4NzY5NzA3MX0.UAKkzy5fMIkrlmnqz9E9KknUw9xhoYpa3f1ptRpOuAA";
+
+// Direct REST API helper — works with any schema
+async function ssoQuery(table, params) {
+    const url = new URL(`${SSO_SUPABASE_URL}/rest/v1/${table}`);
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+
+    const resp = await fetch(url.toString(), {
+        headers: {
+            'apikey': SSO_ANON_KEY,
+            'Authorization': `Bearer ${SSO_ANON_KEY}`,
+            'Accept': 'application/vnd.pgrst.object+json',
+            'Accept-Profile': 'gps_compartilhado'
+        }
+    });
+
+    if (!resp.ok) {
+        const text = await resp.text();
+        console.warn(`[SGE SSO] Query ${table} failed (${resp.status}):`, text);
+        return { data: null, error: { status: resp.status, message: text } };
+    }
+
+    const data = await resp.json();
+    return { data, error: null };
+}
+
+// Same but returns array
+async function ssoQueryMany(table, params) {
+    const url = new URL(`${SSO_SUPABASE_URL}/rest/v1/${table}`);
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+
+    const resp = await fetch(url.toString(), {
+        headers: {
+            'apikey': SSO_ANON_KEY,
+            'Authorization': `Bearer ${SSO_ANON_KEY}`,
+            'Accept': 'application/json',
+            'Accept-Profile': 'gps_compartilhado'
+        }
+    });
+
+    if (!resp.ok) return { data: [], error: { status: resp.status } };
+    const data = await resp.json();
+    return { data, error: null };
+}
 
 window.SGE_SSO = {
     appSlug: null,
     redirectUrl: null,
 
     isSSO() {
-        const params = new URLSearchParams(window.location.search);
-        return params.has('app_slug');
+        return new URLSearchParams(window.location.search).has('app_slug');
     },
 
     init() {
@@ -30,8 +65,8 @@ window.SGE_SSO = {
         this.appSlug = params.get('app_slug') || 'sge_hub';
         this.redirectUrl = params.get('redirect') || null;
 
-        console.log(`[SGE SSO] Modo SSO ativado para: ${this.appSlug}`);
-        console.log(`[SGE SSO] Redirect: ${this.redirectUrl || '(nenhum)'}`);
+        console.log(`[SGE SSO v4] Modo SSO para: ${this.appSlug}`);
+        console.log(`[SGE SSO v4] Redirect: ${this.redirectUrl || '(nenhum)'}`);
 
         document.getElementById('sso-view').classList.remove('hidden');
         document.getElementById('sso-app-name').textContent = this.appSlug.replace(/_/g, ' ').toUpperCase();
@@ -52,85 +87,78 @@ window.SGE_SSO = {
         try {
             // ═══ STEP 1: Authenticate via Supabase Auth ═══
             const authClient = window.supabase.createClient(SSO_SUPABASE_URL, SSO_ANON_KEY);
-            const { data: authData, error: authError } = await authClient.auth.signInWithPassword({
-                email,
-                password: pass
-            });
-
+            const { data: authData, error: authError } = await authClient.auth.signInWithPassword({ email, password: pass });
             if (authError) throw new Error('Credenciais inválidas.');
-            console.log(`[SGE SSO] Auth OK: ${email}`);
+            console.log(`[SGE SSO v4] Auth OK: ${email} (${authData.user.id})`);
 
-            // ═══ STEP 2: RBAC Check via public views (no schema config needed) ═══
-            const rbacClient = window.supabase.createClient(SSO_SUPABASE_URL, SSO_ANON_KEY);
+            // ═══ STEP 2: RBAC via direct REST API (Accept-Profile: gps_compartilhado) ═══
 
             // 2a. Is USER globally active?
-            const { data: userData, error: userError } = await rbacClient
-                .from('v_sso_usuarios')
-                .select('id, nome, is_active')
-                .eq('id', authData.user.id)
-                .single();
+            const { data: userData, error: userErr } = await ssoQuery('sge_central_usuarios', {
+                'select': 'id,nome,is_active',
+                'id': `eq.${authData.user.id}`
+            });
 
-            console.log('[SGE SSO] User query:', { userData, userError });
+            console.log('[SGE SSO v4] User check:', { userData, userErr });
 
-            if (userError || !userData) {
-                console.warn(`[SGE SSO] Usuário ${email} não encontrado.`, userError);
+            if (userErr || !userData) {
                 this.showAccessDenied('SGE Central', 'Seu cadastro não foi encontrado no sistema de governança.');
                 return;
             }
-
             if (!userData.is_active) {
-                console.warn(`[SGE SSO] BLOQUEADO: ${email}`);
                 this.showAccessDenied('SGE Central', 'Sua conta está <strong>bloqueada</strong>.');
                 return;
             }
-
-            console.log(`[SGE SSO] Usuário ativo: ${userData.nome}`);
+            console.log(`[SGE SSO v4] ✓ Usuário ativo: ${userData.nome}`);
 
             // 2b. Is SYSTEM active?
-            const { data: sysData, error: sysError } = await rbacClient
-                .from('v_sso_sistemas')
-                .select('id, nome')
-                .eq('slug', this.appSlug)
-                .eq('is_active', true)
-                .single();
+            const { data: sysData, error: sysErr } = await ssoQuery('sge_central_sistemas', {
+                'select': 'id,nome',
+                'slug': `eq.${this.appSlug}`,
+                'is_active': 'eq.true'
+            });
 
-            if (sysError || !sysData) {
-                console.warn(`[SGE SSO] Sistema "${this.appSlug}" não encontrado.`, sysError);
+            if (sysErr || !sysData) {
                 this.showAccessDenied(this.appSlug, 'Este sistema está <strong>desativado</strong> ou não existe.');
                 return;
             }
+            console.log(`[SGE SSO v4] ✓ Sistema ativo: ${sysData.nome}`);
 
-            // 2c. Does USER have ACCESS to this SYSTEM?
-            const { data: accessData, error: accessError } = await rbacClient
-                .from('v_sso_acesso')
-                .select('id, is_active, perfil_nome, perfil_nivel')
-                .eq('usuario_id', authData.user.id)
-                .eq('sistema_id', sysData.id)
-                .single();
+            // 2c. Does USER have ACCESS?
+            const { data: accessData, error: accessErr } = await ssoQuery('sge_central_usuario_sistema_acesso', {
+                'select': 'id,is_active,perfil_id',
+                'usuario_id': `eq.${authData.user.id}`,
+                'sistema_id': `eq.${sysData.id}`
+            });
 
-            if (accessError || !accessData) {
-                console.warn(`[SGE SSO] SEM ACESSO: ${email} → ${this.appSlug}`, accessError);
+            if (accessErr || !accessData) {
                 this.showAccessDenied(sysData.nome, 'Você <strong>não possui acesso</strong> a este sistema.');
                 return;
             }
-
             if (!accessData.is_active) {
-                console.warn(`[SGE SSO] REVOGADO: ${email} → ${this.appSlug}`);
                 this.showAccessDenied(sysData.nome, 'Seu acesso foi <strong>revogado</strong>.');
                 return;
             }
 
-            const perfil = accessData.perfil_nome || 'GESTAO';
-            console.log(`[SGE SSO] ✓ AUTORIZADO | Perfil: ${perfil}`);
+            // Get profile name
+            let perfil = 'GESTAO';
+            if (accessData.perfil_id) {
+                const { data: perfilData } = await ssoQuery('sge_central_perfis', {
+                    'select': 'nome',
+                    'id': `eq.${accessData.perfil_id}`
+                });
+                if (perfilData) perfil = perfilData.nome;
+            }
+
+            console.log(`[SGE SSO v4] ✓ AUTORIZADO | Perfil: ${perfil}`);
 
             // ═══ STEP 3: Generate SSO Token ═══
-            const meta = authData.user.user_metadata || {};
             const jwtPayload = {
                 sub: authData.user.id,
                 user: {
                     id: authData.user.id,
                     email: email,
-                    nome: userData.nome || meta.full_name || email.split('@')[0],
+                    nome: userData.nome || email.split('@')[0],
                     perfil: perfil
                 },
                 app_slug: this.appSlug,
@@ -144,18 +172,16 @@ window.SGE_SSO = {
             // ═══ STEP 4: Redirect back ═══
             if (this.redirectUrl) {
                 const separator = this.redirectUrl.includes('?') ? '&' : '?';
-                const finalUrl = `${this.redirectUrl}${separator}sso_token=${ssoToken}`;
-                console.log(`[SGE SSO] Redirecionando para: ${finalUrl}`);
-                window.location.href = finalUrl;
+                window.location.href = `${this.redirectUrl}${separator}sso_token=${ssoToken}`;
             } else {
                 errEl.style.color = 'var(--green, #22c55e)';
-                errEl.textContent = 'Autenticado com sucesso! Nenhum redirect configurado.';
+                errEl.textContent = 'Autenticado! Nenhum redirect configurado.';
                 btn.disabled = false;
                 btn.textContent = 'Entrar';
             }
 
         } catch (error) {
-            console.error('[SGE SSO] Erro:', error);
+            console.error('[SGE SSO v4] Erro:', error);
             errEl.textContent = error.message;
             btn.disabled = false;
             btn.textContent = 'Entrar';
@@ -163,8 +189,6 @@ window.SGE_SSO = {
     },
 
     showAccessDenied(systemName, reason) {
-        const defaultReason = `Você <strong>não tem permissão</strong> para acessar <strong>${systemName}</strong>.`;
-        const msg = reason || defaultReason;
         const ssoView = document.getElementById('sso-view');
         ssoView.innerHTML = `
             <div class="login-box" style="border-color:rgba(214,69,69,0.15);">
@@ -176,14 +200,14 @@ window.SGE_SSO = {
                 </svg>
                 <h2 style="font-size:20px; font-weight:800; color:#d64545; margin-bottom:8px;">Acesso Negado</h2>
                 <p style="font-size:14px; color:#5a6676; line-height:1.6; margin-bottom:24px; text-align:center;">
-                    ${msg}<br><br>Contate o administrador do SGE Central.
+                    ${reason}<br><br>Contate o administrador do SGE Central.
                 </p>
                 <div style="display:flex; gap:10px; justify-content:center;">
                     <button onclick="window.history.back()" class="btn-secondary" style="height:40px; padding:0 20px;">← Voltar</button>
                     <button onclick="window.location.href=window.location.pathname" class="btn-primary" style="height:40px; padding:0 20px;">Trocar Conta</button>
                 </div>
             </div>
-            <div class="login-footer">SGE Central — RBAC · Grupo GPS</div>
+            <div class="login-footer">SGE Central — RBAC v4 · Grupo GPS</div>
         `;
     }
 };
