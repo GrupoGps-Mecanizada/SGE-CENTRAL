@@ -18,6 +18,7 @@ let _allSectors = [];
 let _serviceKey = '';
 let _radarChannel = null;   // Supabase Presence Channel
 let _radarSupabase = null;  // client separado com anon key
+let _pingInterval = null;   // Admin session keepalive interval
 
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nY2ppZHJ5cmpxaWNlaWVsbXpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMjEwNzEsImV4cCI6MjA4NzY5NzA3MX0.UAKkzy5fMIkrlmnqz9E9KknUw9xhoYpa3f1ptRpOuAA";
 const RADAR_CHANNEL = "sge-radar";
@@ -61,6 +62,9 @@ document.addEventListener('DOMContentLoaded', () => {
             await window.SGE_API.createAdminSession();
             document.getElementById('admin-login-view').classList.add('hidden');
             document.getElementById('dashboard-view').classList.remove('hidden');
+            document.getElementById('btn-refresh-sessions').style.removeProperty('display');
+            // Keep admin session alive with periodic pings
+            _pingInterval = setInterval(window.SGE_API.pingAdminSession, 60000);
             loadAllData();
         } catch (err) {
             errEl.textContent = 'Chave inválida ou sem permissão.';
@@ -72,9 +76,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Logout
     const doLogout = async () => {
+        if (_pingInterval) { clearInterval(_pingInterval); _pingInterval = null; }
         await window.SGE_API.endAdminSession();
         window.SGE_API.initSupabase('', '');
         document.getElementById('login-key').value = '';
+        document.getElementById('btn-refresh-sessions').style.display = 'none';
         document.getElementById('dashboard-view').classList.add('hidden');
         document.getElementById('admin-login-view').classList.remove('hidden');
         // Desconecta do canal de presença
@@ -135,16 +141,16 @@ function updateBreadcrumb(panelId) {
     const logoEl = document.querySelector('.topbar-logo');
     if (!logoEl) return;
 
-    // Animate out → in
+    // Animate out → in (transition must be set BEFORE changing values)
+    logoEl.style.transition = 'opacity .15s ease, transform .15s ease';
     logoEl.style.opacity = '0';
     logoEl.style.transform = 'translateX(-50%) translateY(4px)';
     setTimeout(() => {
         logoEl.querySelector('.logo-gps').textContent = 'GRUPO GPS';
         logoEl.querySelector('.logo-system').textContent = meta.label || 'CENTRAL SGE';
-        logoEl.style.transition = 'opacity .2s, transform .2s';
         logoEl.style.opacity = '1';
         logoEl.style.transform = 'translateX(-50%) translateY(0)';
-    }, 120);
+    }, 160);
 }
 
 // ──────────────────────────────────────────────────────────
@@ -215,6 +221,80 @@ function emptyStateSVG() {
 }
 
 // ──────────────────────────────────────────────────────────
+// TOAST — Sistema de notificações profissional
+// ──────────────────────────────────────────────────────────
+function sgeToast(type, msg, duration = 3800) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const cfg = {
+        success: { bg: 'var(--green-glow-md)',   border: 'rgba(5,150,105,0.25)',  color: 'var(--green)',   icon: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>' },
+        error:   { bg: 'var(--red-glow-md)',      border: 'rgba(220,38,38,0.25)',  color: 'var(--red)',     icon: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' },
+        warning: { bg: 'var(--orange-glow)',      border: 'rgba(217,119,6,0.25)', color: 'var(--orange)',  icon: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' },
+        info:    { bg: 'var(--accent-glow-md)',   border: 'rgba(29,78,216,0.25)', color: 'var(--accent)',  icon: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="8"/><line x1="12" y1="12" x2="12" y2="16"/></svg>' },
+    };
+    const c = cfg[type] || cfg.info;
+
+    const toast = document.createElement('div');
+    toast.className = 'sge-toast';
+    toast.innerHTML = `
+        <span class="sge-toast-icon" style="color:${c.color}; background:${c.bg}; border-color:${c.border};">${c.icon}</span>
+        <span class="sge-toast-msg">${msg}</span>
+        <button class="sge-toast-close" onclick="this.closest('.sge-toast').remove()">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+    `;
+    container.appendChild(toast);
+
+    // Auto-remove
+    const timer = setTimeout(() => {
+        toast.classList.add('sge-toast-out');
+        setTimeout(() => toast.remove(), 250);
+    }, duration);
+
+    toast.querySelector('.sge-toast-close').addEventListener('click', () => clearTimeout(timer));
+}
+
+// ──────────────────────────────────────────────────────────
+// CONFIRM — Dialog de confirmação profissional
+// ──────────────────────────────────────────────────────────
+function sgeConfirm(msg, dangerLabel = 'Confirmar') {
+    return new Promise(resolve => {
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = `
+            <div class="modal-overlay" style="z-index:9600;">
+                <div class="modal" style="max-width:360px;">
+                    <div style="display:flex; align-items:flex-start; gap:12px; margin-bottom:18px;">
+                        <div style="width:36px; height:36px; border-radius:50%; background:var(--red-glow); border:1.5px solid var(--red-glow-md);
+                                    display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px;">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--red)" stroke-width="2.2" stroke-linecap="round">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 style="margin-bottom:6px;">Confirmar Ação</h3>
+                            <p class="modal-sub" style="margin-bottom:0; line-height:1.5;">${msg}</p>
+                        </div>
+                    </div>
+                    <div class="modal-actions" style="padding-top:14px;">
+                        <button class="btn-secondary" id="_sge-cancel">Cancelar</button>
+                        <button class="btn-danger btn-primary" id="_sge-ok" style="background:var(--red);">${dangerLabel}</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.getElementById('modal-container').appendChild(wrapper);
+
+        wrapper.querySelector('#_sge-cancel').addEventListener('click', () => { wrapper.remove(); resolve(false); });
+        wrapper.querySelector('#_sge-ok').addEventListener('click', () => { wrapper.remove(); resolve(true); });
+        wrapper.querySelector('.modal-overlay').addEventListener('click', e => {
+            if (e.target === wrapper.querySelector('.modal-overlay')) { wrapper.remove(); resolve(false); }
+        });
+    });
+}
+
+// ──────────────────────────────────────────────────────────
 // DATA LOADERS
 // ──────────────────────────────────────────────────────────
 async function loadAllData() {
@@ -251,10 +331,10 @@ function initRadarPresence() {
             const state = _radarChannel.presenceState();
             renderRadar(state);
         })
-        .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+        .on('presence', { event: 'join' }, ({ newPresences }) => {
             console.log('[Radar] Entrou:', newPresences[0]?.user_name);
         })
-        .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+        .on('presence', { event: 'leave' }, ({ leftPresences }) => {
             console.log('[Radar] Saiu:', leftPresences[0]?.user_name);
         })
         .subscribe();
@@ -404,15 +484,6 @@ function renderUsersTable(users) {
     });
 }
 
-// Busca em tempo real na tabela de usuários
-function filterUsersTable(query) {
-    const q = (query || '').toLowerCase().trim();
-    const rows = document.querySelectorAll('#table-users tr[data-search]');
-    rows.forEach(tr => {
-        tr.style.display = !q || tr.dataset.search.includes(q) ? '' : 'none';
-    });
-}
-
 // ──────────────────────────────────────────────────────────
 // SETORES
 // ──────────────────────────────────────────────────────────
@@ -461,6 +532,10 @@ async function loadSystems() {
             const statusBadge = i.is_active
                 ? '<span class="status-badge active"><span class="status-dot online" style="animation:none"></span> Online</span>'
                 : '<span class="status-badge offline"><span class="status-dot offline"></span> Offline</span>';
+
+            const DEV_KEY = `sge_dev_bypass_${i.slug}`;
+            const devActive = localStorage.getItem(DEV_KEY) === '1';
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><strong>${i.nome}</strong></td>
@@ -476,12 +551,56 @@ async function loadSystems() {
                     : '<span style="color:var(--text-3)">—</span>'}
                 </td>
                 <td>
-                    <button class="btn-secondary btn-sm btn-toggle-sys">
-                        ${i.is_active ? 'Desativar' : 'Ativar'}
-                    </button>
+                    <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                        <button class="btn-secondary btn-sm btn-edit-sys" title="Editar sistema">
+                            <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11.5 2.5a2.121 2.121 0 0 1 3 3L5 15H2v-3L11.5 2.5z"/>
+                            </svg>
+                            Editar
+                        </button>
+                        <button class="btn-secondary btn-sm btn-toggle-sys">
+                            ${i.is_active ? 'Desativar' : 'Ativar'}
+                        </button>
+                        <button class="btn-sm btn-dev-sys" title="Bypass SSO para desenvolvimento local"
+                            style="display:inline-flex; align-items:center; gap:5px; padding:4px 9px;
+                                   border-radius:20px; font-size:10px; font-weight:700; letter-spacing:0.05em;
+                                   cursor:pointer; border:1.5px solid; transition:background .15s, color .15s;
+                                   background:${devActive ? '#0f3868' : 'transparent'};
+                                   color:${devActive ? '#60a5fa' : 'var(--text-3)'};
+                                   border-color:${devActive ? '#1d4ed8' : 'var(--border)'};">
+                            <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <circle cx="12" cy="12" r="3"/>
+                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+                            </svg>
+                            ${devActive ? 'DEV ON' : 'DEV OFF'}
+                        </button>
+                    </div>
                 </td>
             `;
             tr.querySelector('.btn-toggle-sys').addEventListener('click', () => toggleSystemStatus(i.id, i.is_active));
+            tr.querySelector('.btn-edit-sys').addEventListener('click', () => showModalEditSystem(i));
+            tr.querySelector('.btn-dev-sys').addEventListener('click', function () {
+                const isOn = localStorage.getItem(DEV_KEY) === '1';
+                if (isOn) {
+                    localStorage.removeItem(DEV_KEY);
+                    // Limpa tokens SSO deste sistema
+                    localStorage.removeItem(`sge_token_${i.slug}`);
+                    localStorage.removeItem(`sge_ver_${i.slug}`);
+                    this.textContent = '';
+                    this.innerHTML = `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg> DEV OFF`;
+                    this.style.background = 'transparent';
+                    this.style.color = 'var(--text-3)';
+                    this.style.borderColor = 'var(--border)';
+                    sgeToast('info', `Dev Mode desativado para ${i.nome}`);
+                } else {
+                    localStorage.setItem(DEV_KEY, '1');
+                    this.innerHTML = `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg> DEV ON`;
+                    this.style.background = '#0f3868';
+                    this.style.color = '#60a5fa';
+                    this.style.borderColor = '#1d4ed8';
+                    sgeToast('success', `Dev Mode ativado para ${i.nome} — SSO bypass habilitado`);
+                }
+            });
             tbody.appendChild(tr);
         });
     } catch (e) { console.error('Sistemas:', e); }
@@ -664,9 +783,10 @@ async function openUserConfig(user) {
                     access_id: select.dataset.accessId,
                     novo_perfil_id: select.value
                 });
+                sgeToast('success', 'Perfil de acesso atualizado.');
                 loadAuditLogs();
             }
-            catch (err) { alert('Erro ao alterar perfil: ' + err.message); }
+            catch (err) { sgeToast('error', 'Erro ao alterar perfil: ' + err.message); }
         });
     });
 
@@ -679,39 +799,42 @@ async function openUserConfig(user) {
                     usuario_id: user.id,
                     access_id: btn.dataset.toggleAccessId
                 });
+                sgeToast('success', isActive ? 'Acesso desativado.' : 'Acesso ativado.');
                 loadAuditLogs();
                 openUserConfig(user);
-            } catch (err) { alert('Erro: ' + err.message); }
+            } catch (err) { sgeToast('error', err.message); }
         });
     });
 
     container.querySelectorAll('[data-revoke-access-id]').forEach(btn => {
         btn.addEventListener('click', async () => {
-            if (!confirm('Revogar permanentemente o acesso a este sistema?')) return;
+            if (!await sgeConfirm('Revogar permanentemente o acesso a este sistema?', 'Revogar')) return;
             try {
                 await window.SGE_API.revokeSystemAccess(btn.dataset.revokeAccessId);
                 await window.SGE_API.insertAuditLog('REVOGAR_ACESSO', {
                     usuario_id: user.id,
                     access_id: btn.dataset.revokeAccessId
                 });
+                sgeToast('success', 'Acesso revogado com sucesso.');
                 loadAuditLogs();
                 openUserConfig(user);
-            } catch (err) { alert('Erro: ' + err.message); }
+            } catch (err) { sgeToast('error', err.message); }
         });
     });
 
     container.querySelectorAll('.remove-sector').forEach(btn => {
         btn.addEventListener('click', async () => {
-            if (!confirm('Remover este setor do usuário?')) return;
+            if (!await sgeConfirm('Remover este setor do usuário?', 'Remover')) return;
             try {
                 await window.SGE_API.removeUserSector(user.id, btn.dataset.setorId);
                 await window.SGE_API.insertAuditLog('REMOVER_SETOR_USUARIO', {
                     usuario_id: user.id,
                     setor_id: btn.dataset.setorId
                 });
+                sgeToast('success', 'Setor removido.');
                 loadAuditLogs();
                 openUserConfig(user);
-            } catch (err) { alert('Erro: ' + err.message); }
+            } catch (err) { sgeToast('error', err.message); }
         });
     });
 
@@ -720,7 +843,7 @@ async function openUserConfig(user) {
         grantBtn.addEventListener('click', async () => {
             const sistemaId = document.getElementById('grant-system-select').value;
             const perfilId = document.getElementById('grant-profile-select').value;
-            if (!sistemaId) { alert('Selecione um sistema.'); return; }
+            if (!sistemaId) { sgeToast('warning', 'Selecione um sistema.'); return; }
             try {
                 await window.SGE_API.grantSystemAccess(user.id, sistemaId, perfilId);
                 await window.SGE_API.insertAuditLog('CONCEDER_ACESSO_SISTEMA', {
@@ -728,9 +851,10 @@ async function openUserConfig(user) {
                     sistema_id: sistemaId,
                     perfil_id: perfilId
                 });
+                sgeToast('success', 'Acesso concedido com sucesso.');
                 loadAuditLogs();
                 openUserConfig(user);
-            } catch (err) { alert('Erro: ' + err.message); }
+            } catch (err) { sgeToast('error', err.message); }
         });
     }
 
@@ -738,16 +862,17 @@ async function openUserConfig(user) {
     if (addSectorBtn) {
         addSectorBtn.addEventListener('click', async () => {
             const setorId = document.getElementById('add-sector-select').value;
-            if (!setorId) { alert('Selecione um setor.'); return; }
+            if (!setorId) { sgeToast('warning', 'Selecione um setor.'); return; }
             try {
                 await window.SGE_API.addUserSector(user.id, setorId);
                 await window.SGE_API.insertAuditLog('ADICIONAR_SETOR_USUARIO', {
                     usuario_id: user.id,
                     setor_id: setorId
                 });
+                sgeToast('success', 'Setor adicionado.');
                 loadAuditLogs();
                 openUserConfig(user);
-            } catch (err) { alert('Erro: ' + err.message); }
+            } catch (err) { sgeToast('error', err.message); }
         });
     }
 
@@ -760,14 +885,15 @@ async function openUserConfig(user) {
 // ──────────────────────────────────────────────────────────
 async function toggleUserStatus(id, currentActive) {
     const action = currentActive ? 'BLOQUEAR' : 'ATIVAR';
-    const msg = `Deseja ${action} este usuário?\n\n${currentActive
-        ? 'Isso irá impedir o acesso a todos os sistemas do ecossistema SGE.'
-        : 'O usuário voltará a ter acesso conforme suas permissões RBAC.'}`;
-    if (!confirm(msg)) return;
+    const msg = currentActive
+        ? 'Bloquear este usuário? Isso irá impedir o acesso a <strong>todos os sistemas</strong> do ecossistema SGE.'
+        : 'Ativar este usuário? O acesso voltará conforme suas permissões RBAC configuradas.';
+    if (!await sgeConfirm(msg, currentActive ? 'Bloquear' : 'Ativar')) return;
 
     try {
         await window.SGE_API.updateUser(id, { is_active: !currentActive });
         await window.SGE_API.insertAuditLog(action, { usuario_id: id });
+        sgeToast('success', currentActive ? 'Usuário bloqueado.' : 'Usuário ativado.');
         loadAuditLogs();
 
         // Attempt to sync Supabase Auth ban
@@ -789,18 +915,22 @@ async function toggleUserStatus(id, currentActive) {
         }
 
         loadUsers();
-    } catch (e) { alert('Erro: ' + e.message); }
+    } catch (e) { sgeToast('error', e.message); }
 }
 
 async function toggleSystemStatus(id, currentActive) {
-    if (!confirm(`Deseja ${currentActive ? 'DESATIVAR' : 'ATIVAR'} este sistema?`)) return;
+    const msg = currentActive
+        ? 'Desativar este sistema? Todos os usuários serão <strong>bloqueados</strong> de acessá-lo.'
+        : 'Ativar este sistema? Os usuários com acesso configurado voltarão a conseguir entrar.';
+    if (!await sgeConfirm(msg, currentActive ? 'Desativar' : 'Ativar')) return;
     try {
         await window.SGE_API.updateSystem(id, { is_active: !currentActive });
         await window.SGE_API.insertAuditLog(currentActive ? 'DESATIVAR_SISTEMA' : 'ATIVAR_SISTEMA', { sistema_id: id });
+        sgeToast('success', currentActive ? 'Sistema desativado.' : 'Sistema ativado.');
         loadAuditLogs();
         _allSystems = await window.SGE_API.fetchAllSystems();
         loadSystems();
-    } catch (e) { alert('Erro: ' + e.message); }
+    } catch (e) { sgeToast('error', e.message); }
 }
 
 // ──────────────────────────────────────────────────────────
@@ -836,14 +966,15 @@ function showModalNewUser() {
         const nome = document.getElementById('mu-nome').value.trim();
         const email = document.getElementById('mu-email').value.trim();
         const senha = document.getElementById('mu-senha').value.trim();
-        if (!nome || !email || !senha) { alert('Preencha todos os campos.'); return; }
+        if (!nome || !email || !senha) { sgeToast('warning', 'Preencha todos os campos.'); return; }
         try {
-            const newUser = await window.SGE_API.createUser({ nome, email, senha_hash: senha, is_active: true });
+            await window.SGE_API.createUser({ nome, email, senha_hash: senha, is_active: true });
             await window.SGE_API.insertAuditLog('CRIAR_USUARIO', { email, nome });
+            sgeToast('success', `Usuário <strong>${nome}</strong> criado com sucesso.`);
             loadAuditLogs();
             closeModal();
             loadUsers();
-        } catch (err) { alert('Erro: ' + err.message); }
+        } catch (err) { sgeToast('error', err.message); }
     });
 }
 
@@ -871,7 +1002,7 @@ function showModalNewSector() {
     document.getElementById('btn-submit-sector').addEventListener('click', async () => {
         const sigla = document.getElementById('ms-sigla').value.trim().toUpperCase();
         const nome = document.getElementById('ms-nome').value.trim();
-        if (!sigla || !nome) { alert('Preencha sigla e nome.'); return; }
+        if (!sigla || !nome) { sgeToast('warning', 'Preencha sigla e nome.'); return; }
         try {
             await window.SGE_API.createSector({
                 sigla, nome,
@@ -879,11 +1010,12 @@ function showModalNewSector() {
                 is_active: true
             });
             await window.SGE_API.insertAuditLog('CRIAR_SETOR', { sigla, nome });
+            sgeToast('success', `Setor <strong>${sigla}</strong> criado com sucesso.`);
             loadAuditLogs();
             closeModal();
             _allSectors = await window.SGE_API.fetchAllSectors();
             loadSectors();
-        } catch (err) { alert('Erro: ' + err.message); }
+        } catch (err) { sgeToast('error', err.message); }
     });
 }
 
@@ -911,7 +1043,7 @@ function showModalNewSystem() {
     document.getElementById('btn-submit-system').addEventListener('click', async () => {
         const nome = document.getElementById('msys-nome').value.trim();
         const slug = document.getElementById('msys-slug').value.trim().toLowerCase().replace(/\s+/g, '_');
-        if (!nome || !slug) { alert('Preencha nome e slug.'); return; }
+        if (!nome || !slug) { sgeToast('warning', 'Preencha nome e slug.'); return; }
         try {
             await window.SGE_API.createSystem({
                 nome, slug,
@@ -919,10 +1051,56 @@ function showModalNewSystem() {
                 is_active: true
             });
             await window.SGE_API.insertAuditLog('CRIAR_SISTEMA', { slug, nome });
+            sgeToast('success', `Sistema <strong>${nome}</strong> registrado com sucesso.`);
             loadAuditLogs();
             closeModal();
             _allSystems = await window.SGE_API.fetchAllSystems();
             loadSystems();
-        } catch (err) { alert('Erro: ' + err.message); }
+        } catch (err) { sgeToast('error', err.message); }
+    });
+}
+
+function showModalEditSystem(system) {
+    showModal('Editar Sistema', `Atualize as informações do sistema <strong>${system.nome}</strong>.`, `
+        <form id="form-edit-system" onsubmit="return false;">
+            <div class="input-group">
+                <label>Nome do Sistema</label>
+                <input id="esys-nome" required value="${system.nome}" placeholder="Ex: Gestão de Efetivo">
+            </div>
+            <div class="input-group">
+                <label>Slug <span style="color:var(--text-3); font-weight:400;">(identificador único)</span></label>
+                <input id="esys-slug" required value="${system.slug}" placeholder="Ex: gestao_efetivo_mec">
+            </div>
+            <div class="input-group">
+                <label>URL de Origem <span style="color:var(--text-3); font-weight:400;">(opcional)</span></label>
+                <input id="esys-url" value="${system.url_origem || ''}" placeholder="https://...">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="submit" class="btn-primary" id="btn-submit-edit-system">
+                    <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <polyline points="13 2 6 9 3 6"/>
+                    </svg>
+                    Salvar Alterações
+                </button>
+            </div>
+        </form>
+    `);
+    document.getElementById('btn-submit-edit-system').addEventListener('click', async () => {
+        const nome = document.getElementById('esys-nome').value.trim();
+        const slug = document.getElementById('esys-slug').value.trim().toLowerCase().replace(/\s+/g, '_');
+        if (!nome || !slug) { sgeToast('warning', 'Preencha nome e slug.'); return; }
+        try {
+            await window.SGE_API.updateSystem(system.id, {
+                nome, slug,
+                url_origem: document.getElementById('esys-url').value.trim() || null
+            });
+            await window.SGE_API.insertAuditLog('EDITAR_SISTEMA', { sistema_id: system.id, nome, slug });
+            sgeToast('success', `Sistema <strong>${nome}</strong> atualizado.`);
+            loadAuditLogs();
+            closeModal();
+            _allSystems = await window.SGE_API.fetchAllSystems();
+            loadSystems();
+        } catch (err) { sgeToast('error', err.message); }
     });
 }

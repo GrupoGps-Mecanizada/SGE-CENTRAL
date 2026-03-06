@@ -295,10 +295,8 @@
                                     <th>Status</th>
                                     <th>Usuário</th>
                                     <th>Sistema</th>
-                                    <th>IP</th>
-                                    <!-- MELHORIA: renomeado para Último Ping e com hint visual -->
-                                    <th title="Verde = ≤5 min · Amarelo = ≤30 min · Vermelho = >30 min">Último Ping ↕
-                                    </th>
+                                    <th>Página</th>
+                                    <th>Desde</th>
                                 </tr>
                             </thead>
                             <tbody id="table-sessions"></tbody>
@@ -319,7 +317,7 @@
                                 </svg>
                                 <input type="text" class="search-input" id="search-users"
                                     placeholder="Buscar usuário..."
-                                    oninput="filterTable(this.value, 'table-users', ['strong', 'td:nth-child(2)'])" />
+                                    oninput="filterTable(this.value, 'table-users')" />
                             </div>
                             <button class="btn-primary" id="btn-create-user">
                                 <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor"
@@ -450,27 +448,25 @@
         </div><!-- /#app -->
     </div><!-- /#dashboard-view -->
 
-    <!-- Containers para modals/drawers -->
+    <!-- Containers para modals/drawers e notificações -->
     <div id="modal-container"></div>
     <div id="user-drawer-container"></div>
+    <div id="toast-container"></div>
 
     <!-- ───────── SCRIPTS ───────── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/api.js?v=6.0"></script>
-    <script src="js/sso.js?v=6.0"></script>
-    <script src="js/app.js?v=6.0"></script>
+    <script src="js/api.js?v=6.1"></script>
+    <script src="js/sso.js?v=6.1"></script>
+    <script src="js/app.js?v=6.1"></script>
+    <script src="js/dev-mode.js?v=1.0.0"></script>
 
-    <!-- MELHORIA: filtro de busca reutilizável inline — sem dependência extra -->
+    <!-- Filtro genérico de tabela por query de texto -->
     <script>
-        /**
-         * Filtro genérico de tabela por query de texto.
-         * Examina o textContent das células e esconde as rows que não batem.
-         */
         function filterTable(query, tbodyId) {
             const q = (query || '').toLowerCase().trim();
             const rows = document.querySelectorAll(`#${tbodyId} tr`);
             rows.forEach(tr => {
-                if (!tr.cells.length) return; // skip colspanned empty rows
+                if (!tr.cells.length) return;
                 const text = Array.from(tr.cells).map(c => c.textContent).join(' ').toLowerCase();
                 tr.style.display = !q || text.includes(q) ? '' : 'none';
             });
