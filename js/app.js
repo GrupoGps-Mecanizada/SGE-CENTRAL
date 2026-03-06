@@ -533,9 +533,6 @@ async function loadSystems() {
                 ? '<span class="status-badge active"><span class="status-dot online" style="animation:none"></span> Online</span>'
                 : '<span class="status-badge offline"><span class="status-dot offline"></span> Offline</span>';
 
-            const DEV_KEY = `sge_dev_bypass_${i.slug}`;
-            const devActive = localStorage.getItem(DEV_KEY) === '1';
-
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><strong>${i.nome}</strong></td>
@@ -551,7 +548,7 @@ async function loadSystems() {
                     : '<span style="color:var(--text-3)">—</span>'}
                 </td>
                 <td>
-                    <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                    <div style="display:flex; gap:6px; align-items:center;">
                         <button class="btn-secondary btn-sm btn-edit-sys" title="Editar sistema">
                             <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M11.5 2.5a2.121 2.121 0 0 1 3 3L5 15H2v-3L11.5 2.5z"/>
@@ -561,46 +558,11 @@ async function loadSystems() {
                         <button class="btn-secondary btn-sm btn-toggle-sys">
                             ${i.is_active ? 'Desativar' : 'Ativar'}
                         </button>
-                        <button class="btn-sm btn-dev-sys" title="Bypass SSO para desenvolvimento local"
-                            style="display:inline-flex; align-items:center; gap:5px; padding:4px 9px;
-                                   border-radius:20px; font-size:10px; font-weight:700; letter-spacing:0.05em;
-                                   cursor:pointer; border:1.5px solid; transition:background .15s, color .15s;
-                                   background:${devActive ? '#0f3868' : 'transparent'};
-                                   color:${devActive ? '#60a5fa' : 'var(--text-3)'};
-                                   border-color:${devActive ? '#1d4ed8' : 'var(--border)'};">
-                            <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5">
-                                <circle cx="12" cy="12" r="3"/>
-                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
-                            </svg>
-                            ${devActive ? 'DEV ON' : 'DEV OFF'}
-                        </button>
                     </div>
                 </td>
             `;
             tr.querySelector('.btn-toggle-sys').addEventListener('click', () => toggleSystemStatus(i.id, i.is_active));
             tr.querySelector('.btn-edit-sys').addEventListener('click', () => showModalEditSystem(i));
-            tr.querySelector('.btn-dev-sys').addEventListener('click', function () {
-                const isOn = localStorage.getItem(DEV_KEY) === '1';
-                if (isOn) {
-                    localStorage.removeItem(DEV_KEY);
-                    // Limpa tokens SSO deste sistema
-                    localStorage.removeItem(`sge_token_${i.slug}`);
-                    localStorage.removeItem(`sge_ver_${i.slug}`);
-                    this.textContent = '';
-                    this.innerHTML = `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg> DEV OFF`;
-                    this.style.background = 'transparent';
-                    this.style.color = 'var(--text-3)';
-                    this.style.borderColor = 'var(--border)';
-                    sgeToast('info', `Dev Mode desativado para ${i.nome}`);
-                } else {
-                    localStorage.setItem(DEV_KEY, '1');
-                    this.innerHTML = `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg> DEV ON`;
-                    this.style.background = '#0f3868';
-                    this.style.color = '#60a5fa';
-                    this.style.borderColor = '#1d4ed8';
-                    sgeToast('success', `Dev Mode ativado para ${i.nome} — SSO bypass habilitado`);
-                }
-            });
             tbody.appendChild(tr);
         });
     } catch (e) { console.error('Sistemas:', e); }
