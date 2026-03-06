@@ -92,10 +92,20 @@
     }
 
     // ── Início ───────────────────────────────────────────────
+    let _retryCount = 0;
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 3000; // 3s entre tentativas
+
     async function start() {
         const data = getSessionData();
         if (!data) {
-            console.log('[SGE Presence] Nenhuma sessão SGE encontrada no localStorage.');
+            if (_retryCount < MAX_RETRIES) {
+                _retryCount++;
+                console.log(`[SGE Presence] Sessão não encontrada — retry ${_retryCount}/${MAX_RETRIES} em ${RETRY_DELAY / 1000}s...`);
+                setTimeout(start, RETRY_DELAY);
+            } else {
+                console.log('[SGE Presence] Nenhuma sessão SGE encontrada no localStorage após retries.');
+            }
             return;
         }
 
