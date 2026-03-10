@@ -142,6 +142,16 @@
                             <path d="M20.5 15a9 9 0 1 1-2.7-9.4L23 10" />
                         </svg>
                     </button>
+                    <!-- Sino de Notificações -->
+                    <button id="btn-notifications" class="topbar-icon-btn" title="Notificações" style="position:relative;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                        </svg>
+                        <span id="notif-badge" class="notif-badge hidden">0</span>
+                    </button>
+                    <!-- Dropdown de notificações -->
+                    <div id="notif-dropdown" class="notif-dropdown hidden"></div>
                     <button id="btn-logout" class="topbar-icon-btn" title="Sair">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
@@ -178,6 +188,21 @@
                                 <line x1="16" y1="17" x2="8" y2="17" />
                             </svg>
                             Auditoria
+                        </button>
+                        <button class="nav-menu-item" data-panel="maintenance">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                            </svg>
+                            Modo Manutenção
+                        </button>
+
+                        <div class="nav-section-label">Comunicação</div>
+                        <button class="nav-menu-item" data-panel="tickets">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                            </svg>
+                            Chamados
+                            <span id="nav-badge-tickets" class="nav-badge hidden">0</span>
                         </button>
 
                         <div class="nav-section-label">Cadastros</div>
@@ -439,6 +464,91 @@
                                 </tr>
                             </thead>
                             <tbody id="table-auditoria"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ========== MAINTENANCE PANEL ========== -->
+                <div id="panel-maintenance" class="panel view">
+                    <div class="panel-header">
+                        <h2>Controle de Manutenção</h2>
+                        <div class="actions">
+                            <span style="font-size:11px; color:var(--text-3);">Pausar/retomar sistemas em tempo real</span>
+                        </div>
+                    </div>
+                    <!-- KPI Cards -->
+                    <div class="stats-cards">
+                        <div class="stat-card">
+                            <div class="stat-label">Sistemas Ativos</div>
+                            <div class="stat-number" id="kpi-sys-online">0</div>
+                            <span class="status-dot online" style="position:absolute; top:18px; right:16px;"></span>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Em Manutenção</div>
+                            <div class="stat-number" id="kpi-sys-maint">0</div>
+                            <span class="status-dot away" style="position:absolute; top:18px; right:16px; background:var(--orange);"></span>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Total de Sistemas</div>
+                            <div class="stat-number" id="kpi-sys-total">0</div>
+                        </div>
+                    </div>
+                    <div id="maintenance-grid" class="maintenance-grid"></div>
+                </div>
+
+                <!-- ========== TICKETS PANEL ========== -->
+                <div id="panel-tickets" class="panel view">
+                    <div class="panel-header">
+                        <h2>Central de Chamados</h2>
+                        <div class="actions" style="display:flex; gap:8px; align-items:center;">
+                            <select id="filter-ticket-status" class="filter-select" onchange="loadTickets()">
+                                <option value="">Todos Status</option>
+                                <option value="aberto" selected>Abertos</option>
+                                <option value="em_andamento">Em Andamento</option>
+                                <option value="resolvido">Resolvidos</option>
+                                <option value="fechado">Fechados</option>
+                            </select>
+                            <select id="filter-ticket-tipo" class="filter-select" onchange="loadTickets()">
+                                <option value="">Todos os Tipos</option>
+                                <option value="login_request">Solicitação de Acesso</option>
+                                <option value="bug_report">Bug Report</option>
+                                <option value="question">Dúvida</option>
+                                <option value="feature_request">Sugestão</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- KPI Cards -->
+                    <div class="stats-cards">
+                        <div class="stat-card">
+                            <div class="stat-label">Abertos</div>
+                            <div class="stat-number" id="kpi-tickets-open">0</div>
+                            <span class="status-dot away" style="position:absolute; top:18px; right:16px; background:var(--orange);"></span>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Em Andamento</div>
+                            <div class="stat-number" id="kpi-tickets-progress">0</div>
+                            <span class="status-dot online" style="position:absolute; top:18px; right:16px; background:var(--accent);"></span>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Resolvidos</div>
+                            <div class="stat-number" id="kpi-tickets-resolved">0</div>
+                            <span class="status-dot online" style="position:absolute; top:18px; right:16px;"></span>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Status</th>
+                                    <th>Tipo</th>
+                                    <th>Assunto</th>
+                                    <th>Remetente</th>
+                                    <th>Sistema</th>
+                                    <th>Data</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-tickets"></tbody>
                         </table>
                     </div>
                 </div>

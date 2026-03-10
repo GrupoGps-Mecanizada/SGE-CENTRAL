@@ -287,10 +287,138 @@ async function endAdminSession() {
     _adminSessionId = null;
 }
 
+// ==================== MANUTENÇÃO ====================
+
+async function fetchMaintenanceAll() {
+    const { data, error } = await db()
+        .from('sge_central_manutencao')
+        .select('*');
+    if (error) { console.warn('Maintenance fetch:', error); return []; }
+    return data || [];
+}
+
+async function upsertMaintenance(sistemaId, ativo, mensagem, previsaoFim, adminId) {
+    // Tenta atualizar primeiro
+    const { data: existing } = await db()
+        .from('sge_central_manutencao')
+        .select('id')
+        .eq('sistema_id', sistemaId)
+        .maybeSingle();
+
+    if (existing) {
+        const updates = {
+            ativo,
+            mensagem: mensagem || 'Sistema em manutenção. Tente novamente em breve.',
+            previsao_fim: previsaoFim || null,
+            ativado_por: adminId || null
+        };
+        if (ativo) {
+            updates.ativado_em = new Date().toISOString();
+            updates.desativado_em = null;
+        } else {
+            updates.desativado_em = new Date().toISOString();
+        }
+        const { error } = await db()
+            .from('sge_central_manutencao')
+            .update(updates)
+            .eq('id', existing.id);
+        if (error) throw error;
+    } else {
+        const { error } = await db()
+            .from('sge_central_manutencao')
+            .insert({
+                sistema_id: sistemaId,
+                ativo,
+                mensagem: mensagem || 'Sistema em manutenção. Tente novamente em breve.',
+                previsao_fim: previsaoFim || null,
+                ativado_por: adminId || null,
+                ativado_em: new Date().toISOString()
+            });
+        if (error) throw error;
+    }
+}
+
+// ==================== TICKETS / CHAMADOS ====================
+
+async function fetchTickets(filters = {}) {
+    let query = db()
+        .from('sge_central_tickets')
+        .select('*')
+        .order('criado_em', { ascending: false })
+        .limit(200);
+
+    if (filters.status) query = query.eq('status', filters.status);
+    if (filters.tipo) query = query.eq('tipo', filters.tipo);
+
+    const { data, error } = await query;
+    if (error) { console.warn('Tickets fetch:', error); return []; }
+    return data || [];
+}
+
+async function updateTicket(id, changes) {
+    changes.atualizado_em = new Date().toISOString();
+    const { error } = await db()
+        .from('sge_central_tickets')
+        .update(changes)
+        .eq('id', id);
+    if (error) throw error;
+}
+
+async function respondToTicket(id, resposta, adminId) {
+    const { error } = await db()
+        .from('sge_central_tickets')
+        .update({
+            resposta_admin: resposta,
+            respondido_por: adminId || null,
+            respondido_em: new Date().toISOString(),
+            status: 'resolvido',
+            atualizado_em: new Date().toISOString()
+        })
+        .eq('id', id);
+    if (error) throw error;
+}
+
+// ==================== NOTIFICAÇÕES ====================
+
+async function fetchNotifications(limit = 20) {
+    const { data, error } = await db()
+        .from('sge_central_notificacoes')
+        .select('*')
+        .order('criado_em', { ascending: false })
+        .limit(limit);
+    if (error) { console.warn('Notif fetch:', error); return []; }
+    return data || [];
+}
+
+async function fetchUnreadNotifCount() {
+    const { count, error } = await db()
+        .from('sge_central_notificacoes')
+        .select('*', { count: 'exact', head: true })
+        .eq('lida', false);
+    if (error) return 0;
+    return count || 0;
+}
+
+async function markNotificationRead(id) {
+    const { error } = await db()
+        .from('sge_central_notificacoes')
+        .update({ lida: true })
+        .eq('id', id);
+    if (error) throw error;
+}
+
+async function markAllNotificationsRead() {
+    const { error } = await db()
+        .from('sge_central_notificacoes')
+        .update({ lida: true })
+        .eq('lida', false);
+    if (error) throw error;
+}
+
 // ==================== EXPORT ====================
 window.SGE_API = {
     initSupabase,
-    db, // Exportado para uso pelo radar
+    db,
     fetchActiveSessions,
     fetchAllUsers,
     fetchAllSectors,
@@ -314,5 +442,17 @@ window.SGE_API = {
     insertAuditLog,
     createAdminSession,
     pingAdminSession,
-    endAdminSession
+    endAdminSession,
+    // Manutenção
+    fetchMaintenanceAll,
+    upsertMaintenance,
+    // Tickets
+    fetchTickets,
+    updateTicket,
+    respondToTicket,
+    // Notificações
+    fetchNotifications,
+    fetchUnreadNotifCount,
+    markNotificationRead,
+    markAllNotificationsRead
 };

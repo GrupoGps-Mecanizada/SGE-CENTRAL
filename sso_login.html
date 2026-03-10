@@ -4,341 +4,186 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-    <title>SGE — Autenticação Centralizada</title>
+    <title>SGE — Autenticacao Centralizada</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <style>
-        *, *::before, *::after {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Inter', sans-serif;
-        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
 
-        /* ── Fundo claro — idêntico ao SGE_GRUPOGPS Hub ─────────────────── */
         body {
             background: radial-gradient(ellipse at 50% 30%, #f1f5f9 0%, #e8edf5 60%, #dde4ef 100%);
-            display: flex;
-            height: 100vh;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            overflow: hidden;
+            display: flex; height: 100vh; align-items: center; justify-content: center;
+            position: relative; overflow: hidden;
         }
 
-        #bg-canvas {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 0;
-            opacity: 0.5;
-        }
+        #bg-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; opacity: 0.5; }
+        #vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 40%, transparent 45%, rgba(180,192,210,0.18) 100%); pointer-events: none; z-index: 1; }
 
-        #vignette {
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(ellipse at 50% 40%, transparent 45%, rgba(180, 192, 210, 0.18) 100%);
-            pointer-events: none;
-            z-index: 1;
-        }
-
-        /* ── Card — mesmo estilo do center-card do SGE_GRUPOGPS ─────────── */
         .login-box {
-            background: #ffffff;
-            border: 1px solid rgba(10, 47, 168, 0.12);
-            border-radius: 16px;
-            width: 100%;
-            max-width: 380px;
-            box-shadow: 0 4px 18px rgba(10, 47, 168, 0.07), 0 1px 4px rgba(0, 0, 0, 0.04);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            position: relative;
-            z-index: 10;
-            margin: 0 16px;
-            animation: cardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            background: #ffffff; border: 1px solid rgba(10,47,168,0.12); border-radius: 16px;
+            width: 100%; max-width: 400px;
+            box-shadow: 0 4px 18px rgba(10,47,168,0.07), 0 1px 4px rgba(0,0,0,0.04);
+            display: flex; flex-direction: column; overflow: hidden;
+            position: relative; z-index: 10; margin: 0 16px;
+            animation: cardIn 0.4s cubic-bezier(0.16,1,0.3,1) forwards;
         }
 
-        @keyframes cardIn {
-            from { opacity: 0; transform: translateY(16px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes cardIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* ── Brand block — header do card ───────────────────────────────── */
         .brand-block {
-            padding: 28px 28px 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            border-bottom: 1px solid rgba(226, 232, 240, 0.7);
-            background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+            padding: 28px 28px 20px; display: flex; flex-direction: column; align-items: center; text-align: center;
+            border-bottom: 1px solid rgba(226,232,240,0.7); background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
         }
+        .brand-label { font-size: 11px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px; }
+        .brand-name { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; color: #0a2fa8; line-height: 1.15; }
+        .brand-divider { width: 32px; height: 2px; background: #0a2fa8; border-radius: 2px; opacity: 0.22; margin: 10px 0 12px; }
+        .brand-sub { font-size: 11px; font-weight: 700; color: #64748b; letter-spacing: 0.06em; text-transform: uppercase; }
 
-        .brand-label {
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.22em;
-            text-transform: uppercase;
-            color: #94a3b8;
-            margin-bottom: 6px;
-        }
-
-        .brand-name {
-            font-size: 28px;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            color: #0a2fa8;
-            line-height: 1.15;
-        }
-
-        .brand-divider {
-            width: 32px;
-            height: 2px;
-            background: #0a2fa8;
-            border-radius: 2px;
-            opacity: 0.22;
-            margin: 10px 0 12px;
-        }
-
-        .brand-sub {
-            font-size: 11px;
-            font-weight: 700;
-            color: #64748b;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-        }
-
-        /* ── Linha do sistema — igual ao hub-sector-header ──────────────── */
         .system-row {
-            padding: 13px 20px;
-            background: #f8fafc;
-            border-bottom: 1px solid rgba(226, 232, 240, 0.7);
-            display: flex;
-            align-items: center;
-            gap: 12px;
+            padding: 13px 20px; background: #f8fafc; border-bottom: 1px solid rgba(226,232,240,0.7);
+            display: flex; align-items: center; gap: 12px;
         }
-
         .system-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #ffffff;
-            flex-shrink: 0;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
-            background: linear-gradient(135deg, #1a56a0 0%, #2563eb 100%);
+            width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+            color: #ffffff; flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+            background: linear-gradient(135deg, #1a56a0 0%, #2563eb 100%); transition: background 0.3s;
         }
+        .system-icon svg { width: 16px; height: 16px; }
+        .system-info { display: flex; flex-direction: column; gap: 1px; flex: 1; }
+        .system-name { font-size: 13px; font-weight: 700; color: #334155; letter-spacing: 0.02em; }
+        .system-sector { font-size: 11px; font-weight: 500; color: #94a3b8; display: flex; align-items: center; gap: 5px; }
+        .system-sector::before { content: ''; display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,0.2); flex-shrink: 0; }
+        .system-sector.loading::before { background: #94a3b8; box-shadow: none; }
 
-        .system-icon svg {
-            width: 15px;
-            height: 15px;
-        }
-
-        .system-info {
-            display: flex;
-            flex-direction: column;
-            gap: 1px;
-        }
-
-        .system-name {
-            font-size: 12px;
-            font-weight: 700;
-            color: #334155;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-        }
-
-        .system-sector {
-            font-size: 11px;
-            font-weight: 500;
-            color: #94a3b8;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .system-sector::before {
-            content: '';
-            display: inline-block;
-            width: 5px;
-            height: 5px;
-            border-radius: 50%;
-            background: #22c55e;
-            box-shadow: 0 0 0 2px rgba(34,197,94,0.2);
-            flex-shrink: 0;
-        }
-
-        /* ── Área do formulário ─────────────────────────────────────────── */
-        .form-area {
-            padding: 22px 24px 26px;
-            display: flex;
-            flex-direction: column;
-            background: #ffffff;
-        }
-
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            margin-bottom: 14px;
-        }
-
-        .input-group:last-of-type {
-            margin-bottom: 0;
-        }
-
-        .input-group label {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            color: #64748b;
-        }
-
+        .form-area { padding: 22px 24px 26px; display: flex; flex-direction: column; background: #ffffff; }
+        .input-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+        .input-group:last-of-type { margin-bottom: 0; }
+        .input-group label { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #64748b; }
         .input-group input {
-            height: 44px;
-            background: #f7f9fc;
-            border: 1px solid #d1d9e6;
-            border-radius: 8px;
-            padding: 0 14px;
-            font-size: 14px;
-            color: #1e293b;
-            font-family: 'Inter', sans-serif;
-            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
-            -webkit-tap-highlight-color: transparent;
-            width: 100%;
+            height: 44px; background: #f7f9fc; border: 1px solid #d1d9e6; border-radius: 8px;
+            padding: 0 14px; font-size: 14px; color: #1e293b; font-family: 'Inter', sans-serif;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s; width: 100%;
         }
-
-        .input-group input::placeholder {
-            color: #cbd5e1;
-            font-size: 13px;
-        }
-
-        .input-group input:focus {
-            outline: none;
-            border-color: #0a2fa8;
-            background: #ffffff;
-            box-shadow: 0 0 0 3px rgba(10, 47, 168, 0.08);
-        }
+        .input-group input::placeholder { color: #cbd5e1; font-size: 13px; }
+        .input-group input:focus { outline: none; border-color: #0a2fa8; background: #ffffff; box-shadow: 0 0 0 3px rgba(10,47,168,0.08); }
 
         .btn-submit {
-            width: 100%;
-            height: 46px;
-            background: #0f3868;
-            color: #ffffff;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin-top: 20px;
-            font-family: 'Inter', sans-serif;
-            letter-spacing: 0.02em;
-            box-shadow: 0 2px 8px rgba(15, 56, 104, 0.18);
-            -webkit-tap-highlight-color: transparent;
+            width: 100%; height: 46px; background: #0f3868; color: #ffffff; border: none; border-radius: 8px;
+            font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-top: 20px;
+            font-family: 'Inter', sans-serif; letter-spacing: 0.02em; box-shadow: 0 2px 8px rgba(15,56,104,0.18);
         }
+        .btn-submit:hover { background: #0a2fa8; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(10,47,168,0.22); }
+        .btn-submit:active { transform: translateY(1px); box-shadow: 0 1px 4px rgba(15,56,104,0.15); }
+        .btn-submit:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
 
-        .btn-submit:hover {
-            background: #0a2fa8;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 14px rgba(10, 47, 168, 0.22);
+        #error-msg { color: #ef4444; font-size: 12px; margin-top: 12px; min-height: 18px; font-weight: 500; text-align: center; }
+
+        /* Footer links */
+        .form-footer { display: flex; justify-content: center; margin-top: 16px; gap: 6px; }
+        .form-footer a {
+            font-size: 11px; color: #64748b; text-decoration: none; font-weight: 600;
+            transition: color 0.15s; cursor: pointer;
         }
+        .form-footer a:hover { color: #0a2fa8; }
 
-        .btn-submit:active {
-            transform: translateY(1px);
-            box-shadow: 0 1px 4px rgba(15, 56, 104, 0.15);
-        }
-
-        .btn-submit:disabled {
-            opacity: 0.65;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        #error-msg {
-            color: #ef4444;
-            font-size: 12px;
-            margin-top: 12px;
-            min-height: 18px;
-            font-weight: 500;
-            text-align: center;
-        }
-
-        /* ── Rodapé ─────────────────────────────────────────────────────── */
         .login-footer {
-            position: absolute;
-            bottom: 20px;
-            left: 0;
-            right: 0;
-            text-align: center;
-            font-size: 10px;
-            color: #94a3b8;
-            font-weight: 500;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            pointer-events: none;
-            z-index: 10;
+            position: absolute; bottom: 20px; left: 0; right: 0; text-align: center;
+            font-size: 10px; color: #94a3b8; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
+            pointer-events: none; z-index: 10;
         }
 
-        .btn-spinner {
-            display: inline-block;
-            width: 13px;
-            height: 13px;
-            border: 2px solid rgba(255,255,255,0.35);
-            border-top-color: #ffffff;
-            border-radius: 50%;
-            animation: spin 0.7s linear infinite;
-            vertical-align: middle;
-            margin-right: 6px;
-        }
+        .btn-spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #ffffff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        /* Access Request form (inline) */
+        .access-request-form {
+            display: none; padding: 16px 24px 20px; border-top: 1px solid rgba(226,232,240,0.7);
+            background: #f8fafc; animation: cardIn 0.3s ease;
+        }
+        .access-request-form.show { display: block; }
+        .access-request-form h4 { font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 12px; }
+        .access-request-form textarea {
+            width: 100%; padding: 10px 12px; border: 1px solid #d1d9e6; border-radius: 8px;
+            font-size: 13px; font-family: 'Inter', sans-serif; resize: vertical; min-height: 60px;
+            background: #fff; color: #1e293b; transition: border-color 0.2s;
+        }
+        .access-request-form textarea:focus { outline: none; border-color: #0a2fa8; }
+        .btn-request {
+            width: 100%; height: 40px; background: #7c3aed; color: #fff; border: none; border-radius: 8px;
+            font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 10px; transition: all 0.2s;
+        }
+        .btn-request:hover { background: #6d28d9; }
+        .btn-request:disabled { opacity: 0.65; cursor: not-allowed; }
+
+        .success-msg {
+            display: none; padding: 12px 16px; margin: 12px 24px; border-radius: 8px;
+            background: rgba(5,150,105,0.08); border: 1px solid rgba(5,150,105,0.2);
+            color: #059669; font-size: 12px; font-weight: 600; text-align: center;
+        }
+        .success-msg.show { display: block; }
+
+        /* Maintenance overlay */
+        .maint-overlay {
+            display: none; position: fixed; inset: 0; z-index: 99999;
+            background: radial-gradient(ellipse at 50% 30%, #fffbeb, #fef3c7 60%, #fde68a);
+            align-items: center; justify-content: center; font-family: 'Inter', sans-serif;
+        }
+        .maint-overlay.show { display: flex; }
+        .maint-card {
+            background: #fff; border: 1px solid rgba(217,119,6,.15); border-radius: 16px;
+            padding: 40px; max-width: 460px; width: 90%; text-align: center;
+            box-shadow: 0 4px 18px rgba(217,119,6,.07);
         }
 
         @media (max-width: 420px) {
             .brand-block { padding: 22px 20px 16px; }
-            .form-area   { padding: 18px 18px 22px; }
-            .brand-name  { font-size: 24px; }
+            .form-area { padding: 18px 18px 22px; }
+            .brand-name { font-size: 24px; }
         }
     </style>
 </head>
 
 <body>
-
     <canvas id="bg-canvas"></canvas>
     <div id="vignette"></div>
 
-    <div class="login-box">
+    <!-- Maintenance overlay (shown if system is in maintenance) -->
+    <div class="maint-overlay" id="maint-overlay">
+        <div class="maint-card">
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+            </svg>
+            <h2 style="font-size:22px;font-weight:800;color:#d97706;margin-bottom:8px">Sistema em Manutencao</h2>
+            <p id="maint-message" style="font-size:14px;color:#5a6676;line-height:1.7;margin-bottom:20px"></p>
+            <div id="maint-eta" style="display:none;padding:8px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:13px;color:#92400e;margin-bottom:20px"></div>
+            <button onclick="window.location.reload()" style="padding:10px 24px;background:#d97706;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600">Tentar Novamente</button>
+        </div>
+    </div>
 
-        <!-- Brand block — identidade visual SGE_GRUPOGPS -->
+    <div class="login-box">
         <div class="brand-block">
             <span class="brand-label">Grupo GPS</span>
             <span class="brand-name">CENTRAL SGE</span>
             <div class="brand-divider"></div>
-            <span class="brand-sub">Autenticação Centralizada</span>
+            <span class="brand-sub">Autenticacao Centralizada</span>
         </div>
 
-        <!-- Linha do sistema — dinâmica via app_slug -->
+        <!-- Dynamic system row -->
         <div class="system-row">
             <div class="system-icon" id="system-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect>
-                    <rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                    <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
                 </svg>
             </div>
             <div class="system-info">
-                <span class="system-name" id="access-system-name">SGE Central</span>
-                <span class="system-sector" id="access-sector-name">Setor Corporativo / TI</span>
+                <span class="system-name" id="access-system-name">Carregando...</span>
+                <span class="system-sector loading" id="access-sector-name">Identificando sistema</span>
             </div>
         </div>
 
-        <!-- Formulário -->
         <div class="form-area">
             <form id="sso-form">
                 <div class="input-group">
@@ -352,6 +197,30 @@
                 <button type="submit" id="btn-submit" class="btn-submit">Entrar</button>
             </form>
             <div id="error-msg"></div>
+            <div class="form-footer">
+                <a id="btn-request-access" title="Solicitar acesso ao sistema">Solicitar Acesso</a>
+            </div>
+        </div>
+
+        <!-- Success message (after access request) -->
+        <div class="success-msg" id="success-msg"></div>
+
+        <!-- Inline access request form -->
+        <div class="access-request-form" id="access-request-form">
+            <h4>Solicitar Acesso</h4>
+            <div class="input-group">
+                <label>Seu E-mail</label>
+                <input type="email" id="req-email" placeholder="seu.email@gps.com.br">
+            </div>
+            <div class="input-group">
+                <label>Seu Nome</label>
+                <input type="text" id="req-nome" placeholder="Nome completo">
+            </div>
+            <div class="input-group" style="margin-bottom:0;">
+                <label>Justificativa</label>
+                <textarea id="req-msg" placeholder="Explique por que precisa de acesso a este sistema..."></textarea>
+            </div>
+            <button type="button" id="btn-send-request" class="btn-request">Enviar Solicitacao</button>
         </div>
     </div>
 
@@ -359,83 +228,181 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // ===== Particles — idênticas ao SGE_GRUPOGPS =====
+        // ===== Particles =====
         (function () {
             const canvas = document.getElementById('bg-canvas');
             const ctx = canvas.getContext('2d');
             let particles = [];
-
             function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
             window.addEventListener('resize', resize); resize();
-
             for (let i = 0; i < 60; i++) {
-                particles.push({
-                    x: Math.random() * canvas.width, y: Math.random() * canvas.height,
-                    r: Math.random() * 2 + 0.5,
-                    dx: (Math.random() - 0.5) * 0.4, dy: (Math.random() - 0.5) * 0.4,
-                    opacity: Math.random() * 0.3 + 0.1
-                });
+                particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, r: Math.random() * 2 + 0.5, dx: (Math.random() - 0.5) * 0.4, dy: (Math.random() - 0.5) * 0.4, opacity: Math.random() * 0.3 + 0.1 });
             }
-
             function draw() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                particles.forEach(p => {
-                    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                    ctx.fillStyle = `rgba(10,47,168,${p.opacity})`; ctx.fill();
-                    p.x += p.dx; p.y += p.dy;
-                    if (p.x < 0 || p.x > canvas.width) p.dx *= -1;
-                    if (p.y < 0 || p.y > canvas.height) p.dy *= -1;
-                });
-                for (let i = 0; i < particles.length; i++) {
-                    for (let j = i + 1; j < particles.length; j++) {
-                        const dx = particles[i].x - particles[j].x, dy = particles[i].y - particles[j].y;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        if (dist < 120) {
-                            ctx.beginPath(); ctx.moveTo(particles[i].x, particles[i].y);
-                            ctx.lineTo(particles[j].x, particles[j].y);
-                            ctx.strokeStyle = `rgba(10,47,168,${0.06 * (1 - dist / 120)})`;
-                            ctx.lineWidth = 0.5; ctx.stroke();
-                        }
-                    }
-                }
+                particles.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fillStyle = `rgba(10,47,168,${p.opacity})`; ctx.fill(); p.x += p.dx; p.y += p.dy; if (p.x < 0 || p.x > canvas.width) p.dx *= -1; if (p.y < 0 || p.y > canvas.height) p.dy *= -1; });
+                for (let i = 0; i < particles.length; i++) { for (let j = i + 1; j < particles.length; j++) { const dx = particles[i].x - particles[j].x, dy = particles[i].y - particles[j].y; const dist = Math.sqrt(dx * dx + dy * dy); if (dist < 120) { ctx.beginPath(); ctx.moveTo(particles[i].x, particles[i].y); ctx.lineTo(particles[j].x, particles[j].y); ctx.strokeStyle = `rgba(10,47,168,${0.06 * (1 - dist / 120)})`; ctx.lineWidth = 0.5; ctx.stroke(); } } }
                 requestAnimationFrame(draw);
             }
             draw();
         })();
 
-        // ===== Ícones por sistema =====
+        // ===== Icon Library =====
         const SYSTEM_ICONS = {
-            default: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>`,
-            people:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`,
-            doc:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`,
-            chart:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>`,
-            box:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>`,
+            default: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>`,
+            people:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+            doc:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
+            chart:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
+            box:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>`,
+            wrench:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
+            truck:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`,
+            clock:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`,
+            shield:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
         };
 
-        const systemDictionary = {
-            'sge_hub':            { name: 'SGE Central',         sector: 'Setor Corporativo / TI', icon: 'default' },
-            'gestao_efetivo_mec': { name: 'Gestão de Efetivo',   sector: 'Mecanizada',             icon: 'people'  },
-            'relatorio_turno':    { name: 'Relatório de Turno',  sector: 'Mecanizada',             icon: 'doc'     },
-            'sge_almoxarifado':   { name: 'Almoxarifado',        sector: 'Mecanizada',             icon: 'box'     },
-            'sge_dashboard':      { name: 'Dashboard Executivo', sector: 'Mecanizada',             icon: 'chart'   },
-            'controle_medicao':   { name: 'Controle de Medição', sector: 'Mecanizada',             icon: 'doc'     },
+        // Fallback dictionary (used when Supabase fetch fails)
+        const FALLBACK_DICT = {
+            'sge_hub':              { name: 'SGE Central',            sector: 'Corporativo / TI',   icon: 'default' },
+            'gestao_efetivo_mec':   { name: 'Gestao de Efetivo',      sector: 'Mecanizada',          icon: 'people' },
+            'relatorio_turno_mec':  { name: 'Relatorio de Turno',     sector: 'Mecanizada',          icon: 'doc' },
+            'controle_presenca_mec':{ name: 'Controle de Presenca',   sector: 'Mecanizada',          icon: 'clock' },
+            'controle_medicao_adm': { name: 'Controle de Medicao',    sector: 'Mecanizada',          icon: 'chart' },
+            'etilometro_mec':       { name: 'Etilometro Digital',     sector: 'Mecanizada',          icon: 'shield' },
+            'almoxarifado_mec':     { name: 'Almoxarifado',           sector: 'Mecanizada',          icon: 'box' },
+            'controle_frota_mec':   { name: 'Controle de Frota',      sector: 'Mecanizada',          icon: 'truck' },
+            'manutencoes_mec':      { name: 'Manutencoes',            sector: 'Mecanizada',          icon: 'wrench' },
+            'horas_extras_mec':     { name: 'Horas Extras',           sector: 'Mecanizada',          icon: 'clock' },
+            'apontamentos_mec':     { name: 'Apontamentos',           sector: 'Mecanizada',          icon: 'doc' },
         };
 
-        // ===== SSO Logic =====
-        document.addEventListener('DOMContentLoaded', () => {
-            const urlParams  = new URLSearchParams(window.location.search);
-            const appSlug    = urlParams.get('app_slug') || 'sge_hub';
+        // ===== Supabase Config =====
+        const SUPA_URL = "https://mgcjidryrjqiceielmzp.supabase.co";
+        const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nY2ppZHJ5cmpxaWNlaWVsbXpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMjEwNzEsImV4cCI6MjA4NzY5NzA3MX0.UAKkzy5fMIkrlmnqz9E9KknUw9xhoYpa3f1ptRpOuAA";
+
+        function esc(str) { return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+        // ===== Dynamic System Info =====
+        async function fetchSystemFromDB(slug) {
+            try {
+                const resp = await fetch(`${SUPA_URL}/rest/v1/v_sso_sistemas?slug=eq.${slug}&select=id,nome,is_active,icone,cor`, {
+                    headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}`, 'Accept': 'application/vnd.pgrst.object+json' }
+                });
+                if (!resp.ok) return null;
+                return await resp.json();
+            } catch (e) { return null; }
+        }
+
+        // ===== Maintenance Check =====
+        async function checkMaintenance(slug) {
+            try {
+                const resp = await fetch(`${SUPA_URL}/rest/v1/v_sso_manutencao?sistema_slug=eq.${slug}&select=ativo,mensagem,previsao_fim`, {
+                    headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}` }
+                });
+                if (!resp.ok) return null;
+                const data = await resp.json();
+                return (data && data.length > 0 && data[0].ativo) ? data[0] : null;
+            } catch (e) { return null; }
+        }
+
+        // ===== Submit Access Request =====
+        async function submitAccessRequest(email, nome, msg, slug, systemName) {
+            const resp = await fetch(`${SUPA_URL}/rest/v1/sge_central_tickets`, {
+                method: 'POST',
+                headers: {
+                    'apikey': SUPA_KEY,
+                    'Authorization': `Bearer ${SUPA_KEY}`,
+                    'Content-Type': 'application/json',
+                    'Content-Profile': 'gps_compartilhado',
+                    'Prefer': 'return=minimal'
+                },
+                body: JSON.stringify({
+                    tipo: 'login_request',
+                    assunto: `Solicitacao de acesso: ${systemName}`,
+                    mensagem: msg || `Usuario ${email} solicita acesso ao sistema ${systemName} (${slug})`,
+                    sistema_slug: slug,
+                    usuario_nome: nome,
+                    usuario_email: email,
+                    prioridade: 'normal'
+                })
+            });
+            return resp.ok;
+        }
+
+        // ===== Main Init =====
+        document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const appSlug = urlParams.get('app_slug') || 'sge_hub';
             const redirectUrl = urlParams.get('redirect');
 
-            const sysInfo = systemDictionary[appSlug] || {
-                name:   appSlug.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+            // 1. Fetch system info dynamically from Supabase
+            const dbSystem = await fetchSystemFromDB(appSlug);
+            const fallback = FALLBACK_DICT[appSlug] || {
+                name: appSlug.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
                 sector: 'Mecanizada', icon: 'default'
             };
 
-            document.getElementById('access-system-name').textContent = sysInfo.name;
-            document.getElementById('access-sector-name').textContent  = sysInfo.sector;
-            document.getElementById('system-icon').innerHTML = SYSTEM_ICONS[sysInfo.icon] || SYSTEM_ICONS.default;
+            const sysName = dbSystem?.nome || fallback.name;
+            const sysIcon = dbSystem?.icone || fallback.icon || 'default';
+            const sysSector = fallback.sector;
 
+            document.getElementById('access-system-name').textContent = sysName;
+            const sectorEl = document.getElementById('access-sector-name');
+            sectorEl.textContent = sysSector;
+            sectorEl.classList.remove('loading');
+
+            const iconEl = document.getElementById('system-icon');
+            iconEl.innerHTML = SYSTEM_ICONS[sysIcon] || SYSTEM_ICONS.default;
+            if (dbSystem?.cor) {
+                iconEl.style.background = `linear-gradient(135deg, ${dbSystem.cor} 0%, ${dbSystem.cor}cc 100%)`;
+            }
+
+            // 2. Check maintenance mode
+            const maint = await checkMaintenance(appSlug);
+            if (maint) {
+                document.getElementById('maint-message').textContent = maint.mensagem || 'Sistema temporariamente indisponivel.';
+                if (maint.previsao_fim) {
+                    const etaEl = document.getElementById('maint-eta');
+                    etaEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Previsao de retorno: <strong>${new Date(maint.previsao_fim).toLocaleString('pt-BR')}</strong>`;
+                    etaEl.style.display = 'inline-block';
+                }
+                document.getElementById('maint-overlay').classList.add('show');
+                return; // Stop — don't show login
+            }
+
+            // 3. Access request toggle
+            const reqFormEl = document.getElementById('access-request-form');
+            document.getElementById('btn-request-access').addEventListener('click', () => {
+                reqFormEl.classList.toggle('show');
+                // Pre-fill email if typed
+                const emailVal = document.getElementById('email').value;
+                if (emailVal) document.getElementById('req-email').value = emailVal;
+            });
+
+            // 4. Submit access request
+            document.getElementById('btn-send-request').addEventListener('click', async () => {
+                const reqEmail = document.getElementById('req-email').value.trim();
+                const reqNome = document.getElementById('req-nome').value.trim();
+                const reqMsg = document.getElementById('req-msg').value.trim();
+                if (!reqEmail) return;
+
+                const btn = document.getElementById('btn-send-request');
+                btn.disabled = true;
+                btn.textContent = 'Enviando...';
+
+                const ok = await submitAccessRequest(reqEmail, reqNome, reqMsg, appSlug, sysName);
+                btn.disabled = false;
+                btn.textContent = 'Enviar Solicitacao';
+
+                if (ok) {
+                    reqFormEl.classList.remove('show');
+                    const successEl = document.getElementById('success-msg');
+                    successEl.textContent = 'Solicitacao enviada com sucesso! O administrador sera notificado.';
+                    successEl.classList.add('show');
+                    setTimeout(() => successEl.classList.remove('show'), 8000);
+                }
+            });
+
+            // 5. Login form submit
             document.getElementById('sso-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const btn = document.getElementById('btn-submit');
@@ -445,55 +412,88 @@
                 err.textContent = '';
 
                 const email = document.getElementById('email').value.trim();
-                const pass  = document.getElementById('password').value;
+                const pass = document.getElementById('password').value;
 
                 try {
-                    const supaUrl = "https://mgcjidryrjqiceielmzp.supabase.co";
-                    const anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nY2ppZHJ5cmpxaWNlaWVsbXpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMjEwNzEsImV4cCI6MjA4NzY5NzA3MX0.UAKkzy5fMIkrlmnqz9E9KknUw9xhoYpa3f1ptRpOuAA";
-                    const localSupabase = window.supabase.createClient(supaUrl, anonKey);
+                    const localSupabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 
                     const { data: authData, error: authError } = await localSupabase.auth.signInWithPassword({ email, password: pass });
-                    if (authError) throw new Error("Credenciais inválidas. Verifique e-mail e senha.");
+                    if (authError) throw new Error("Credenciais invalidas. Verifique e-mail e senha.");
 
+                    // Build RBAC-checked JWT
                     const meta = authData.user.user_metadata || {};
+                    const userName = meta.full_name || meta.nome || email.split('@')[0];
+
+                    // RBAC triple check via public views
+                    let perfil = 'VISAO'; // default
+
+                    try {
+                        const headers = { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}`, 'Accept': 'application/vnd.pgrst.object+json' };
+
+                        // Check user active
+                        const userResp = await fetch(`${SUPA_URL}/rest/v1/v_sso_usuarios?id=eq.${authData.user.id}&select=id,is_active`, { headers });
+                        if (userResp.ok) {
+                            const userData = await userResp.json();
+                            if (userData && !userData.is_active) throw new Error('Sua conta foi bloqueada pelo administrador.');
+                        }
+
+                        // Check system + access
+                        if (dbSystem && dbSystem.id) {
+                            const accessResp = await fetch(`${SUPA_URL}/rest/v1/v_sso_acesso?usuario_id=eq.${authData.user.id}&sistema_id=eq.${dbSystem.id}&select=id,is_active,perfil_nome`, { headers });
+                            if (accessResp.ok) {
+                                const accessData = await accessResp.json();
+                                if (accessData) {
+                                    if (!accessData.is_active) throw new Error('Seu acesso a este sistema foi revogado.');
+                                    perfil = accessData.perfil_nome || perfil;
+                                }
+                            }
+                        }
+                    } catch (rbacErr) {
+                        if (rbacErr.message.includes('bloqueada') || rbacErr.message.includes('revogado')) {
+                            throw rbacErr;
+                        }
+                        // Network errors — allow through with default profile
+                    }
+
                     const jwtPayload = {
+                        ver: 6,
                         sub: authData.user.id,
-                        user: { id: authData.user.id, email, nome: meta.full_name || email.split('@')[0], perfil: meta.perfil || 'ADM' },
+                        user: { id: authData.user.id, email, nome: userName, perfil },
                         app_slug: appSlug,
+                        iat: Math.floor(Date.now() / 1000),
                         exp: Math.floor(Date.now() / 1000) + (60 * 60 * 8)
                     };
 
+                    // Register session
                     let sessionId = null;
                     try {
-                        if (appSlug !== 'sge_hub') {
-                            const authSupabase = window.supabase.createClient(supaUrl, anonKey, {
+                        if (appSlug !== 'sge_hub' && dbSystem) {
+                            const authSb = window.supabase.createClient(SUPA_URL, SUPA_KEY, {
                                 db: { schema: 'gps_compartilhado' },
                                 global: { headers: { 'Authorization': `Bearer ${authData.session.access_token}` } }
                             });
-                            const { data: sysData } = await authSupabase.from('sge_central_sistemas').select('id').eq('slug', appSlug).single();
-                            if (sysData) {
-                                const { data: sessData, error: sessErr } = await authSupabase.from('sge_central_sessoes').insert({
-                                    usuario_id: authData.user.id, sistema_id: sysData.id,
-                                    ip_address: '0.0.0.0', user_agent: navigator.userAgent.substring(0, 200),
-                                    expira_em: new Date(Date.now() + 28800000).toISOString()
-                                }).select('id').single();
-                                if (!sessErr) sessionId = sessData?.id;
-                            }
+                            const { data: sessData } = await authSb.from('sge_central_sessoes').insert({
+                                usuario_id: authData.user.id, sistema_id: dbSystem.id,
+                                ip_address: '0.0.0.0', user_agent: navigator.userAgent.substring(0, 200),
+                                expira_em: new Date(Date.now() + 28800000).toISOString()
+                            }).select('id').single();
+                            if (sessData) sessionId = sessData.id;
                         }
-                    } catch (e) { console.warn('[SGE SSO] Sessão não registrada:', e); }
+                    } catch (_) {}
 
+                    // Save session metadata for satellite ping/widget
                     try {
-                        const userName = meta.full_name || meta.nome || email.split('@')[0];
                         localStorage.setItem('sge_session_id', sessionId || '');
                         localStorage.setItem('sge_session_user_id', authData.user.id);
                         localStorage.setItem('sge_session_token', authData.session.access_token);
                         localStorage.setItem('sge_session_user_name', userName);
                         localStorage.setItem('sge_session_user_email', email);
                         localStorage.setItem('sge_session_app_slug', appSlug);
-                        localStorage.setItem('sge_session_app_name', sysInfo.name);
-                    } catch (e) { /* incognito */ }
+                        localStorage.setItem('sge_session_app_name', sysName);
+                    } catch (_) {}
 
-                    const payloadBase64 = btoa(JSON.stringify(jwtPayload));
+                    // Generate JWT
+                    const payloadBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(jwtPayload))));
                     const jwtToken = `eyJhbGciOiJIUzI1NiJ9.${payloadBase64}.sge_central_sig`;
 
                     if (redirectUrl) {

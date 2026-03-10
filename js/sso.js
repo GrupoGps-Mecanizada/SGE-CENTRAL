@@ -64,8 +64,16 @@ window.SGE_SSO = {
         this.appSlug = params.get('app_slug') || 'sge_hub';
         this.redirectUrl = params.get('redirect') || null;
 
-        console.log(`[SGE SSO v4] Modo SSO para: ${this.appSlug}`);
-        console.log(`[SGE SSO v4] Redirect: ${this.redirectUrl || '(nenhum)'}`);
+        console.log(`[SGE SSO v6] Modo SSO para: ${this.appSlug}`);
+        console.log(`[SGE SSO v6] Redirect: ${this.redirectUrl || '(nenhum)'}`);
+
+        // v6: Redirect SSO requests to unified sso_login.html
+        if (this.appSlug && this.appSlug !== 'sge_hub') {
+            const loginUrl = `sso_login.html?app_slug=${encodeURIComponent(this.appSlug)}${this.redirectUrl ? '&redirect=' + encodeURIComponent(this.redirectUrl) : ''}`;
+            console.log(`[SGE SSO v6] Redirecionando para: ${loginUrl}`);
+            window.location.href = loginUrl;
+            return;
+        }
 
         document.getElementById('sso-view').classList.remove('hidden');
         document.getElementById('sso-app-name').textContent = this.appSlug.replace(/_/g, ' ').toUpperCase();

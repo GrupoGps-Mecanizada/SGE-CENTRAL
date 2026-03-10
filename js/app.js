@@ -27,12 +27,14 @@ const RADAR_CHANNEL = "sge-radar";
 // PANEL METADATA — títulos e subtítulos para o breadcrumb
 // ──────────────────────────────────────────────────────────
 const PANEL_META = {
-    sessions: { label: 'Radar de Sessões', sub: 'Monitoramento em tempo real' },
-    users: { label: 'Gestão de Identidade', sub: 'Usuários e permissões' },
+    sessions:    { label: 'Radar de Sessões',       sub: 'Monitoramento em tempo real' },
+    users:       { label: 'Gestão de Identidade',    sub: 'Usuários e permissões' },
     'user-config': { label: 'Configuração de Usuário', sub: 'Acessos e permissões' },
-    sectors: { label: 'Setores / CRs', sub: 'Centros de resultado' },
-    systems: { label: 'Ecossistema SGE', sub: 'Sistemas registrados' },
-    audit: { label: 'Log de Auditoria', sub: 'Histórico de ações' },
+    sectors:     { label: 'Setores / CRs',           sub: 'Centros de resultado' },
+    systems:     { label: 'Ecossistema SGE',          sub: 'Sistemas registrados' },
+    audit:       { label: 'Log de Auditoria',         sub: 'Histórico de ações' },
+    maintenance: { label: 'Modo Manutenção',          sub: 'Pausar sistemas temporariamente' },
+    tickets:     { label: 'Central de Chamados',      sub: 'Comunicação com usuários' },
 };
 
 // ──────────────────────────────────────────────────────────
@@ -308,11 +310,15 @@ async function loadAllData() {
 
     updateBreadcrumb('sessions');
     initRadarPresence();
+    initNotificationChannel();
 
     loadUsers();
     loadSectors();
     loadSystems();
     loadAuditLogs();
+    loadMaintenance();
+    loadTickets();
+    loadNotificationBadge();
 }
 
 // ──────────────────────────────────────────────────────────
@@ -1022,6 +1028,490 @@ function showModalNewSystem() {
     });
 }
 
+// ──────────────────────────────────────────────────────────
+// MANUTENÇÃO — Controle de pausa dos sistemas
+// ──────────────────────────────────────────────────────────
+let _maintenanceMap = {}; // sistema_id -> { ativo, mensagem, previsao_fim }
+
+async function loadMaintenance() {
+    try {
+        const maintData = await window.SGE_API.fetchMaintenanceAll();
+        _maintenanceMap = {};
+        maintData.forEach(m => { _maintenanceMap[m.sistema_id] = m; });
+        renderMaintenanceCards();
+    } catch (e) { console.error('Maintenance:', e); }
+}
+
+function renderMaintenanceCards() {
+    const grid = document.getElementById('maintenance-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    const systems = _allSystems.length ? _allSystems : [];
+    if (!systems.length) {
+        grid.innerHTML = `<div class="table-empty" style="padding:40px;"><div class="table-empty-inner">${emptyStateSVG()}<span>Nenhum sistema registrado</span></div></div>`;
+        return;
+    }
+
+    let activeCount = 0, maintCount = 0;
+
+    systems.forEach(sys => {
+        const maint = _maintenanceMap[sys.id];
+        const isInMaint = maint && maint.ativo;
+        if (isInMaint) maintCount++; else activeCount++;
+
+        const card = document.createElement('div');
+        card.className = `maintenance-card ${isInMaint ? 'in-maintenance' : ''}`;
+        card.innerHTML = `
+            <div class="maint-card-header">
+                <div class="maint-card-info">
+                    <strong class="maint-card-name">${sys.nome}</strong>
+                    <code class="maint-card-slug">${sys.slug}</code>
+                </div>
+                <label class="maint-toggle" title="${isInMaint ? 'Desativar manutenção' : 'Ativar manutenção'}">
+                    <input type="checkbox" class="maint-toggle-input" data-sys-id="${sys.id}" ${isInMaint ? 'checked' : ''}>
+                    <span class="maint-toggle-slider"></span>
+                </label>
+            </div>
+            <div class="maint-card-body">
+                <div class="maint-status-indicator ${isInMaint ? 'status-maint' : 'status-active'}">
+                    <span class="status-dot ${isInMaint ? 'away' : 'online'}"></span>
+                    ${isInMaint ? 'Em Manutenção' : 'Operacional'}
+                </div>
+                <div class="maint-fields ${isInMaint ? '' : 'hidden'}">
+                    <div class="input-group" style="margin-top:10px;">
+                        <label style="font-size:11px; font-weight:600; color:var(--text-3);">Mensagem para os usuários</label>
+                        <textarea class="maint-msg" data-sys-id="${sys.id}" rows="2"
+                            placeholder="Sistema em manutenção. Tente novamente em breve."
+                            style="font-size:12px; resize:vertical;">${maint?.mensagem || ''}</textarea>
+                    </div>
+                    <div class="input-group" style="margin-top:6px;">
+                        <label style="font-size:11px; font-weight:600; color:var(--text-3);">Previsão de retorno</label>
+                        <input type="datetime-local" class="maint-eta" data-sys-id="${sys.id}"
+                            value="${maint?.previsao_fim ? new Date(maint.previsao_fim).toISOString().slice(0, 16) : ''}"
+                            style="font-size:12px;">
+                    </div>
+                    <button class="btn-primary btn-sm maint-save-btn" data-sys-id="${sys.id}" style="margin-top:8px; width:100%;">
+                        <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2">
+                            <polyline points="13 2 6 9 3 6"/>
+                        </svg>
+                        Salvar Mensagem
+                    </button>
+                </div>
+            </div>
+        `;
+        grid.appendChild(card);
+
+        // Toggle event
+        const toggle = card.querySelector('.maint-toggle-input');
+        toggle.addEventListener('change', async () => {
+            const newState = toggle.checked;
+            const msg = card.querySelector('.maint-msg')?.value || '';
+            const eta = card.querySelector('.maint-eta')?.value || null;
+            try {
+                await window.SGE_API.upsertMaintenance(sys.id, newState, msg, eta ? new Date(eta).toISOString() : null);
+                await window.SGE_API.insertAuditLog(newState ? 'ATIVAR_MANUTENCAO' : 'DESATIVAR_MANUTENCAO', {
+                    sistema_id: sys.id, sistema_nome: sys.nome
+                });
+                sgeToast(newState ? 'warning' : 'success',
+                    newState ? `<strong>${sys.nome}</strong> em manutenção.` : `<strong>${sys.nome}</strong> restaurado.`);
+                loadMaintenance();
+                loadAuditLogs();
+            } catch (err) { sgeToast('error', err.message); toggle.checked = !newState; }
+        });
+
+        // Save message button
+        const saveBtn = card.querySelector('.maint-save-btn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', async () => {
+                const msg = card.querySelector('.maint-msg')?.value || '';
+                const eta = card.querySelector('.maint-eta')?.value || null;
+                try {
+                    await window.SGE_API.upsertMaintenance(sys.id, true, msg, eta ? new Date(eta).toISOString() : null);
+                    sgeToast('success', 'Mensagem de manutenção atualizada.');
+                } catch (err) { sgeToast('error', err.message); }
+            });
+        }
+    });
+
+    // KPIs
+    animateCounter(document.getElementById('kpi-sys-online'), activeCount);
+    animateCounter(document.getElementById('kpi-sys-maint'), maintCount);
+    animateCounter(document.getElementById('kpi-sys-total'), systems.length);
+}
+
+// ──────────────────────────────────────────────────────────
+// TICKETS — Central de Chamados
+// ──────────────────────────────────────────────────────────
+const TICKET_TYPE_LABELS = {
+    login_request: { label: 'Acesso', color: 'var(--purple)', bg: 'rgba(124,58,237,0.1)' },
+    bug_report:    { label: 'Bug',    color: 'var(--red)',    bg: 'var(--red-glow)' },
+    question:      { label: 'Dúvida', color: 'var(--accent)', bg: 'var(--accent-glow)' },
+    feature_request: { label: 'Sugestão', color: 'var(--green)', bg: 'var(--green-glow)' },
+    other:         { label: 'Outro',  color: 'var(--text-2)', bg: 'var(--bg-3)' }
+};
+
+const TICKET_STATUS_LABELS = {
+    aberto:       { label: 'Aberto',       color: 'var(--orange)', bg: 'var(--orange-glow)' },
+    em_andamento: { label: 'Em Andamento', color: 'var(--accent)', bg: 'var(--accent-glow)' },
+    resolvido:    { label: 'Resolvido',    color: 'var(--green)',  bg: 'var(--green-glow)' },
+    fechado:      { label: 'Fechado',      color: 'var(--text-3)', bg: 'var(--bg-3)' }
+};
+
+async function loadTickets() {
+    try {
+        const statusFilter = document.getElementById('filter-ticket-status')?.value || '';
+        const tipoFilter = document.getElementById('filter-ticket-tipo')?.value || '';
+        const filters = {};
+        if (statusFilter) filters.status = statusFilter;
+        if (tipoFilter) filters.tipo = tipoFilter;
+
+        const tickets = await window.SGE_API.fetchTickets(filters);
+
+        // Contadores para KPIs (sem filtro)
+        const allTickets = await window.SGE_API.fetchTickets({});
+        const openCount = allTickets.filter(t => t.status === 'aberto').length;
+        const progressCount = allTickets.filter(t => t.status === 'em_andamento').length;
+        const resolvedCount = allTickets.filter(t => t.status === 'resolvido').length;
+        animateCounter(document.getElementById('kpi-tickets-open'), openCount);
+        animateCounter(document.getElementById('kpi-tickets-progress'), progressCount);
+        animateCounter(document.getElementById('kpi-tickets-resolved'), resolvedCount);
+
+        // Badge no nav
+        const navBadge = document.getElementById('nav-badge-tickets');
+        if (navBadge) {
+            if (openCount > 0) {
+                navBadge.textContent = openCount;
+                navBadge.classList.remove('hidden');
+            } else {
+                navBadge.classList.add('hidden');
+            }
+        }
+
+        renderTicketsTable(tickets);
+    } catch (e) { console.error('Tickets:', e); }
+}
+
+function renderTicketsTable(tickets) {
+    const tbody = document.getElementById('table-tickets');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!tickets.length) {
+        tbody.innerHTML = `
+            <tr><td colspan="7" class="table-empty">
+                <div class="table-empty-inner">
+                    ${emptyStateSVG()}
+                    <span>Nenhum chamado encontrado</span>
+                </div>
+            </td></tr>`;
+        return;
+    }
+
+    tickets.forEach(t => {
+        const statusCfg = TICKET_STATUS_LABELS[t.status] || TICKET_STATUS_LABELS.aberto;
+        const tipoCfg = TICKET_TYPE_LABELS[t.tipo] || TICKET_TYPE_LABELS.other;
+        const sysName = _allSystems.find(s => s.slug === t.sistema_slug)?.nome || t.sistema_slug || '—';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>
+                <span class="ticket-badge" style="color:${statusCfg.color}; background:${statusCfg.bg};">
+                    ${statusCfg.label}
+                </span>
+            </td>
+            <td>
+                <span class="ticket-badge" style="color:${tipoCfg.color}; background:${tipoCfg.bg};">
+                    ${tipoCfg.label}
+                </span>
+            </td>
+            <td>
+                <strong style="font-size:13px;">${escapeHtml(t.assunto)}</strong>
+                ${t.resposta_admin ? '<br><small style="color:var(--green); font-size:10px;">✓ Respondido</small>' : ''}
+            </td>
+            <td>
+                <span style="font-size:12px;">${escapeHtml(t.usuario_nome || t.usuario_email)}</span>
+                ${t.usuario_nome ? `<br><small style="color:var(--text-3); font-size:10px;">${escapeHtml(t.usuario_email)}</small>` : ''}
+            </td>
+            <td><span style="font-size:12px; color:var(--text-2);">${escapeHtml(sysName)}</span></td>
+            <td><small style="color:var(--text-3);">${new Date(t.criado_em).toLocaleString('pt-BR')}</small></td>
+            <td>
+                <div style="display:flex; gap:4px;">
+                    <button class="btn-primary btn-sm btn-view-ticket" title="Ver detalhes">
+                        <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="8" cy="8" r="6"/><line x1="8" y1="6" x2="8" y2="10"/><circle cx="8" cy="4.5" r=".3" fill="currentColor"/>
+                        </svg>
+                        Detalhes
+                    </button>
+                    ${t.tipo === 'login_request' && t.status === 'aberto' ? `
+                    <button class="btn-secondary btn-sm btn-quick-grant" title="Conceder acesso rápido" style="color:var(--green); border-color:var(--green-glow-md);">
+                        ✓ Grant
+                    </button>` : ''}
+                </div>
+            </td>
+        `;
+        tr.querySelector('.btn-view-ticket').addEventListener('click', () => showTicketDetailModal(t));
+        const grantBtn = tr.querySelector('.btn-quick-grant');
+        if (grantBtn) grantBtn.addEventListener('click', () => quickGrantFromTicket(t));
+        tbody.appendChild(tr);
+    });
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function showTicketDetailModal(ticket) {
+    const statusCfg = TICKET_STATUS_LABELS[ticket.status] || TICKET_STATUS_LABELS.aberto;
+    const tipoCfg = TICKET_TYPE_LABELS[ticket.tipo] || TICKET_TYPE_LABELS.other;
+
+    const statusOptions = Object.entries(TICKET_STATUS_LABELS).map(([key, val]) =>
+        `<option value="${key}" ${key === ticket.status ? 'selected' : ''}>${val.label}</option>`
+    ).join('');
+
+    showModal('Detalhes do Chamado', `#${ticket.id.substring(0, 8)} — ${escapeHtml(ticket.assunto)}`, `
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+            <div style="background:var(--bg-2); padding:10px 12px; border-radius:var(--radius); border:1px solid var(--border);">
+                <div style="font-size:10px; font-weight:600; color:var(--text-3); margin-bottom:4px;">TIPO</div>
+                <span class="ticket-badge" style="color:${tipoCfg.color}; background:${tipoCfg.bg};">${tipoCfg.label}</span>
+            </div>
+            <div style="background:var(--bg-2); padding:10px 12px; border-radius:var(--radius); border:1px solid var(--border);">
+                <div style="font-size:10px; font-weight:600; color:var(--text-3); margin-bottom:4px;">STATUS</div>
+                <select id="ticket-status-select" class="filter-select" style="font-size:12px; padding:4px 8px;">
+                    ${statusOptions}
+                </select>
+            </div>
+            <div style="background:var(--bg-2); padding:10px 12px; border-radius:var(--radius); border:1px solid var(--border);">
+                <div style="font-size:10px; font-weight:600; color:var(--text-3); margin-bottom:4px;">REMETENTE</div>
+                <div style="font-size:12px;">${escapeHtml(ticket.usuario_nome || '—')}</div>
+                <div style="font-size:11px; color:var(--text-3);">${escapeHtml(ticket.usuario_email)}</div>
+            </div>
+            <div style="background:var(--bg-2); padding:10px 12px; border-radius:var(--radius); border:1px solid var(--border);">
+                <div style="font-size:10px; font-weight:600; color:var(--text-3); margin-bottom:4px;">SISTEMA</div>
+                <div style="font-size:12px;">${escapeHtml(ticket.sistema_slug || '—')}</div>
+            </div>
+        </div>
+        <div style="background:var(--bg-2); padding:12px 14px; border-radius:var(--radius); border:1px solid var(--border); margin-bottom:12px;">
+            <div style="font-size:10px; font-weight:600; color:var(--text-3); margin-bottom:6px;">MENSAGEM DO USUÁRIO</div>
+            <div style="font-size:13px; line-height:1.6; white-space:pre-wrap;">${escapeHtml(ticket.mensagem)}</div>
+        </div>
+        ${ticket.resposta_admin ? `
+        <div style="background:var(--green-glow); padding:12px 14px; border-radius:var(--radius); border:1px solid var(--green-glow-md); margin-bottom:12px;">
+            <div style="font-size:10px; font-weight:600; color:var(--green); margin-bottom:6px;">RESPOSTA DO ADMIN</div>
+            <div style="font-size:13px; line-height:1.6; white-space:pre-wrap;">${escapeHtml(ticket.resposta_admin)}</div>
+            <div style="font-size:10px; color:var(--text-3); margin-top:6px;">${ticket.respondido_em ? new Date(ticket.respondido_em).toLocaleString('pt-BR') : ''}</div>
+        </div>` : ''}
+        <div class="input-group">
+            <label style="font-weight:600;">Responder ao usuário</label>
+            <textarea id="ticket-reply" rows="3" placeholder="Digite sua resposta..." style="font-size:13px;">${ticket.resposta_admin || ''}</textarea>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn-secondary" onclick="closeModal()">Fechar</button>
+            <button type="button" class="btn-primary" id="btn-ticket-respond">
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M14 2l-6 6M14 2l-4 12-2-6-6-2z"/>
+                </svg>
+                Responder e Resolver
+            </button>
+        </div>
+    `);
+
+    // Status change
+    document.getElementById('ticket-status-select').addEventListener('change', async (e) => {
+        try {
+            await window.SGE_API.updateTicket(ticket.id, { status: e.target.value });
+            sgeToast('success', 'Status do chamado atualizado.');
+            loadTickets();
+        } catch (err) { sgeToast('error', err.message); }
+    });
+
+    // Reply
+    document.getElementById('btn-ticket-respond').addEventListener('click', async () => {
+        const reply = document.getElementById('ticket-reply').value.trim();
+        if (!reply) { sgeToast('warning', 'Digite uma resposta.'); return; }
+        try {
+            await window.SGE_API.respondToTicket(ticket.id, reply);
+            await window.SGE_API.insertAuditLog('RESPONDER_TICKET', {
+                ticket_id: ticket.id,
+                assunto: ticket.assunto,
+                tipo: ticket.tipo
+            });
+            sgeToast('success', 'Chamado respondido e resolvido.');
+            closeModal();
+            loadTickets();
+            loadAuditLogs();
+        } catch (err) { sgeToast('error', err.message); }
+    });
+}
+
+async function quickGrantFromTicket(ticket) {
+    if (!ticket.usuario_email) { sgeToast('warning', 'E-mail do usuário não disponível.'); return; }
+    sgeToast('info', `Abrindo painel de identidade para conceder acesso...`);
+    // Try to find user or create
+    try {
+        const users = await window.SGE_API.fetchAllUsers();
+        const existingUser = users.find(u => u.email === ticket.usuario_email);
+        if (existingUser) {
+            await window.SGE_API.updateTicket(ticket.id, { status: 'em_andamento' });
+            openUserConfig(existingUser);
+        } else {
+            sgeToast('info', `Usuário ${ticket.usuario_email} não encontrado. Crie-o primeiro.`);
+            showModalNewUser();
+        }
+    } catch (e) { sgeToast('error', e.message); }
+}
+
+// ──────────────────────────────────────────────────────────
+// NOTIFICAÇÕES — Sino + Dropdown + Realtime
+// ──────────────────────────────────────────────────────────
+let _notifChannel = null;
+let _notifDropdownOpen = false;
+
+async function loadNotificationBadge() {
+    try {
+        const count = await window.SGE_API.fetchUnreadNotifCount();
+        const badge = document.getElementById('notif-badge');
+        if (!badge) return;
+        if (count > 0) {
+            badge.textContent = count > 99 ? '99+' : count;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    } catch (e) { console.warn('Notif badge:', e); }
+}
+
+function initNotificationChannel() {
+    // Subscribe to new tickets via Realtime
+    if (_notifChannel) return;
+
+    try {
+        _notifChannel = window.SGE_API.db()
+            .channel('tickets-live-notif')
+            .on('postgres_changes', {
+                event: 'INSERT',
+                schema: 'gps_compartilhado',
+                table: 'sge_central_tickets'
+            }, (payload) => {
+                loadNotificationBadge();
+                const t = payload.new;
+                const tipoLabel = TICKET_TYPE_LABELS[t.tipo]?.label || 'Chamado';
+                sgeToast('info', `Novo ${tipoLabel}: ${escapeHtml(t.assunto || 'Sem assunto')}`);
+
+                // Browser push notification
+                if (Notification.permission === 'granted') {
+                    new Notification('SGE Central', {
+                        body: `Novo ${tipoLabel}: ${t.assunto || ''}`,
+                        icon: 'favicon.svg'
+                    });
+                }
+                loadTickets();
+            })
+            .subscribe();
+
+        // Request notification permission
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+    } catch (e) { console.warn('Notif channel:', e); }
+
+    // Setup notification bell click
+    const bellBtn = document.getElementById('btn-notifications');
+    const dropdown = document.getElementById('notif-dropdown');
+    if (bellBtn && dropdown) {
+        bellBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            _notifDropdownOpen = !_notifDropdownOpen;
+            if (_notifDropdownOpen) {
+                renderNotifDropdown();
+                dropdown.classList.remove('hidden');
+            } else {
+                dropdown.classList.add('hidden');
+            }
+        });
+        document.addEventListener('click', (e) => {
+            if (!dropdown.contains(e.target) && e.target !== bellBtn) {
+                dropdown.classList.add('hidden');
+                _notifDropdownOpen = false;
+            }
+        });
+    }
+}
+
+async function renderNotifDropdown() {
+    const dropdown = document.getElementById('notif-dropdown');
+    if (!dropdown) return;
+
+    const notifs = await window.SGE_API.fetchNotifications(15);
+
+    if (!notifs.length) {
+        dropdown.innerHTML = `
+            <div class="notif-dropdown-header">
+                <strong>Notificações</strong>
+            </div>
+            <div style="padding:24px; text-align:center; color:var(--text-3); font-size:12px;">
+                Nenhuma notificação
+            </div>`;
+        return;
+    }
+
+    const unreadCount = notifs.filter(n => !n.lida).length;
+    dropdown.innerHTML = `
+        <div class="notif-dropdown-header">
+            <strong>Notificações</strong>
+            ${unreadCount > 0 ? `<button class="notif-mark-all" id="btn-mark-all-read">Marcar todas lidas</button>` : ''}
+        </div>
+        <div class="notif-dropdown-list">
+            ${notifs.map(n => `
+                <div class="notif-item ${n.lida ? '' : 'unread'}" data-notif-id="${n.id}" data-ref-id="${n.referencia_id || ''}">
+                    <div class="notif-item-icon ${n.tipo === 'login_request' ? 'notif-icon-access' : n.tipo === 'bug_report' ? 'notif-icon-bug' : 'notif-icon-info'}">
+                        ${n.tipo === 'login_request'
+                            ? '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 1v4h4"/><path d="M11 1l4 4"/><circle cx="6" cy="5" r="3"/><path d="M0 14c0-3 3-5 6-5s6 2 6 5"/></svg>'
+                            : n.tipo === 'bug_report'
+                            ? '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="8"/><circle cx="8" cy="11" r=".5" fill="currentColor"/></svg>'
+                            : '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 10l-3 3H5l-3 3V3a1 1 0 011-1h10a1 1 0 011 1z"/></svg>'
+                        }
+                    </div>
+                    <div class="notif-item-content">
+                        <div class="notif-item-title">${escapeHtml(n.titulo)}</div>
+                        <div class="notif-item-time">${relativeTime(n.criado_em)}</div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    // Mark all read
+    const markAllBtn = dropdown.querySelector('#btn-mark-all-read');
+    if (markAllBtn) {
+        markAllBtn.addEventListener('click', async () => {
+            await window.SGE_API.markAllNotificationsRead();
+            loadNotificationBadge();
+            renderNotifDropdown();
+        });
+    }
+
+    // Click on notification
+    dropdown.querySelectorAll('.notif-item').forEach(item => {
+        item.addEventListener('click', async () => {
+            const notifId = item.dataset.notifId;
+            if (notifId) {
+                await window.SGE_API.markNotificationRead(notifId);
+                loadNotificationBadge();
+                item.classList.remove('unread');
+            }
+            // Navigate to tickets panel
+            switchPanel('tickets');
+            dropdown.classList.add('hidden');
+            _notifDropdownOpen = false;
+        });
+    });
+}
+
+// ──────────────────────────────────────────────────────────
+// CRUD MODAIS — Editar Sistema
+// ──────────────────────────────────────────────────────────
 function showModalEditSystem(system) {
     showModal('Editar Sistema', `Atualize as informações do sistema <strong>${system.nome}</strong>.`, `
         <form id="form-edit-system" onsubmit="return false;">
