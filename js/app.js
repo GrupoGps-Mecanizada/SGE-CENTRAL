@@ -46,42 +46,66 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // Admin panel mode
-    document.getElementById('admin-login-view').classList.remove('hidden');
+    // Admin panel mode — tenta restaurar sessão salva antes de mostrar login
+    (async () => {
+        const restoredUserId = await window.SGE_API.restoreSession(SUPABASE_PROJECT_URL, ANON_KEY);
+        if (restoredUserId) {
+            try {
+                await window.SGE_API.checkAdminAccess(restoredUserId, SUPABASE_PROJECT_URL, ANON_KEY);
+                await window.SGE_API.fetchAllSectors();
+                await window.SGE_API.createAdminSession();
+                document.getElementById('dashboard-view').classList.remove('hidden');
+                document.getElementById('btn-refresh-sessions').style.removeProperty('display');
+                _pingInterval = setInterval(window.SGE_API.pingAdminSession, 60000);
+                loadAllData();
+                return;
+            } catch { /* sessão restaurada mas sem permissão — cai para o login */ }
+        }
+        document.getElementById('admin-login-view').classList.remove('hidden');
+    })();
 
     const doLogin = async () => {
-        const key = document.getElementById('login-key').value.trim();
-        if (!key) return;
-        _serviceKey = key;
-        const errEl = document.getElementById('login-error');
-        errEl.textContent = '';
+        const email = document.getElementById('login-email').value.trim();
+        const password = document.getElementById('login-password').value;
+        if (!email || !password) return;
 
-        const ok = window.SGE_API.initSupabase(SUPABASE_PROJECT_URL, key);
-        if (!ok) { errEl.textContent = 'Erro ao inicializar conexão.'; return; }
+        const errEl = document.getElementById('login-error');
+        const btn = document.getElementById('btn-login');
+        errEl.textContent = '';
+        btn.disabled = true;
+        btn.innerHTML = '<span style="display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px;"></span> Autenticando...';
+
+        const { data, error } = await window.SGE_API.loginWithEmailPassword(SUPABASE_PROJECT_URL, ANON_KEY, email, password);
+
+        btn.disabled = false;
+        btn.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="7" width="10" height="8" rx="1"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/></svg> Entrar no Painel';
+
+        if (error) { errEl.textContent = 'E-mail ou senha inválidos.'; return; }
 
         try {
+            await window.SGE_API.checkAdminAccess(data.user.id, SUPABASE_PROJECT_URL, ANON_KEY);
             await window.SGE_API.fetchAllSectors();
             await window.SGE_API.createAdminSession();
             document.getElementById('admin-login-view').classList.add('hidden');
             document.getElementById('dashboard-view').classList.remove('hidden');
             document.getElementById('btn-refresh-sessions').style.removeProperty('display');
-            // Keep admin session alive with periodic pings
             _pingInterval = setInterval(window.SGE_API.pingAdminSession, 60000);
             loadAllData();
         } catch (err) {
-            errEl.textContent = 'Chave inválida ou sem permissão.';
+            errEl.textContent = err.message || 'Sem permissão de administrador.';
+            await window.SGE_API.logoutAuth();
         }
     };
 
     document.getElementById('btn-login').addEventListener('click', doLogin);
-    document.getElementById('login-key').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+    document.getElementById('login-email').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('login-password').focus(); });
+    document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
     // Logout
     const doLogout = async () => {
         if (_pingInterval) { clearInterval(_pingInterval); _pingInterval = null; }
         await window.SGE_API.endAdminSession();
-        window.SGE_API.initSupabase('', '');
-        document.getElementById('login-key').value = '';
+        await window.SGE_API.logoutAuth();
         document.getElementById('btn-refresh-sessions').style.display = 'none';
         document.getElementById('dashboard-view').classList.add('hidden');
         document.getElementById('admin-login-view').classList.remove('hidden');

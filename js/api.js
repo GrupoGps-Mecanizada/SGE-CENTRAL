@@ -7,6 +7,7 @@
  *   sge_central_usuario_sistema_acesso: id, usuario_id, sistema_id, perfil_id, concedido_por, concedido_em, is_active
  */
 let supabaseClient = null;
+let _authClient = null;
 
 function initSupabase(projectUrl, serviceRoleKey) {
     try {
@@ -19,6 +20,53 @@ function initSupabase(projectUrl, serviceRoleKey) {
         console.error("Erro ao inicializar Supabase:", error);
         return false;
     }
+}
+
+async function loginWithEmailPassword(projectUrl, anonKey, email, password) {
+    try {
+        _authClient = supabase.createClient(projectUrl, anonKey, {
+            auth: { persistSession: true, storageKey: 'sge_central_admin' }
+        });
+        const { data, error } = await _authClient.auth.signInWithPassword({ email, password });
+        if (error) return { data: null, error };
+
+        // Inicializa client principal com JWT do usuário logado
+        supabaseClient = supabase.createClient(projectUrl, anonKey, {
+            auth: { persistSession: true, storageKey: 'sge_central_admin' },
+            db: { schema: 'gps_compartilhado' }
+        });
+        await supabaseClient.auth.setSession(data.session);
+        return { data, error: null };
+    } catch (err) {
+        return { data: null, error: err };
+    }
+}
+
+async function restoreSession(projectUrl, anonKey) {
+    try {
+        _authClient = supabase.createClient(projectUrl, anonKey, {
+            auth: { persistSession: true, storageKey: 'sge_central_admin' }
+        });
+        const { data: { session } } = await _authClient.auth.getSession();
+        if (!session) return null;
+
+        supabaseClient = supabase.createClient(projectUrl, anonKey, {
+            auth: { persistSession: true, storageKey: 'sge_central_admin' },
+            db: { schema: 'gps_compartilhado' }
+        });
+        await supabaseClient.auth.setSession(session);
+        return session.user.id;
+    } catch {
+        return null;
+    }
+}
+
+async function logoutAuth() {
+    try {
+        if (_authClient) await _authClient.auth.signOut();
+    } catch {}
+    _authClient = null;
+    supabaseClient = null;
 }
 
 function db() {
@@ -415,9 +463,44 @@ async function markAllNotificationsRead() {
     if (error) throw error;
 }
 
+// ==================== ADMIN CHECK ====================
+
+async function checkAdminAccess(userId, projectUrl, anonKey) {
+    const headers = {
+        'apikey': anonKey,
+        'Authorization': `Bearer ${anonKey}`,
+        'Accept': 'application/vnd.pgrst.object+json'
+    };
+
+    const sysUrl = new URL(`${projectUrl}/rest/v1/v_sso_sistemas`);
+    sysUrl.searchParams.set('select', 'id');
+    sysUrl.searchParams.set('slug', 'eq.sge_hub');
+    sysUrl.searchParams.set('is_active', 'eq.true');
+
+    const sysResp = await fetch(sysUrl.toString(), { headers });
+    if (!sysResp.ok) throw new Error('Sem permissão de administrador.');
+    const sysData = await sysResp.json();
+    if (!sysData?.id) throw new Error('Sem permissão de administrador.');
+
+    const accUrl = new URL(`${projectUrl}/rest/v1/v_sso_acesso`);
+    accUrl.searchParams.set('select', 'is_active,perfil_nome');
+    accUrl.searchParams.set('usuario_id', `eq.${userId}`);
+    accUrl.searchParams.set('sistema_id', `eq.${sysData.id}`);
+
+    const accResp = await fetch(accUrl.toString(), { headers });
+    if (!accResp.ok) throw new Error('Sem permissão de administrador.');
+    const accData = await accResp.json();
+
+    if (!accData?.is_active) throw new Error('Sem permissão de administrador.');
+    return accData;
+}
+
 // ==================== EXPORT ====================
 window.SGE_API = {
     initSupabase,
+    loginWithEmailPassword,
+    restoreSession,
+    logoutAuth,
     db,
     fetchActiveSessions,
     fetchAllUsers,
@@ -439,6 +522,7 @@ window.SGE_API = {
     createSystem,
     updateSystem,
     revokeSession,
+    checkAdminAccess,
     insertAuditLog,
     createAdminSession,
     pingAdminSession,
