@@ -32,9 +32,8 @@ async function loginWithEmailPassword(projectUrl, anonKey, email, password) {
         const { data, error } = await _authClient.auth.signInWithPassword({ email, password });
         if (error) return { data: null, error };
 
-        // Inicializa client principal com JWT do usuário logado (sem persistir — sessão gerenciada pelo _authClient)
         supabaseClient = supabase.createClient(projectUrl, anonKey, {
-            auth: { persistSession: false },
+            auth: { persistSession: true, storageKey: 'sge_central_db' },
             db: { schema: 'gps_compartilhado' }
         });
         await supabaseClient.auth.setSession(data.session);
@@ -53,7 +52,7 @@ async function restoreSession(projectUrl, anonKey) {
         if (!session) return null;
 
         supabaseClient = supabase.createClient(projectUrl, anonKey, {
-            auth: { persistSession: false },
+            auth: { persistSession: true, storageKey: 'sge_central_db' },
             db: { schema: 'gps_compartilhado' }
         });
         await supabaseClient.auth.setSession(session);
