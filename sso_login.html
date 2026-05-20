@@ -399,6 +399,21 @@
                 const pass = document.getElementById('password').value;
 
                 try {
+                    // Re-check maintenance — blocks login even if page loaded before maintenance started
+                    const maintNow = await checkMaintenance(appSlug);
+                    if (maintNow) {
+                        document.getElementById('maint-message').textContent = maintNow.mensagem || 'Sistema temporariamente indisponivel.';
+                        if (maintNow.previsao_fim) {
+                            const etaEl = document.getElementById('maint-eta');
+                            etaEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Previsao de retorno: <strong>${new Date(maintNow.previsao_fim).toLocaleString('pt-BR')}</strong>`;
+                            etaEl.style.display = 'inline-block';
+                        }
+                        document.getElementById('maint-overlay').classList.add('show');
+                        btn.disabled = false;
+                        btn.textContent = 'Entrar';
+                        return;
+                    }
+
                     const localSupabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 
                     const { data: authData, error: authError } = await localSupabase.auth.signInWithPassword({ email, password: pass });
@@ -408,36 +423,29 @@
                     const meta = authData.user.user_metadata || {};
                     const userName = meta.full_name || meta.nome || email.split('@')[0];
 
-                    // RBAC triple check via public views
-                    let perfil = 'VISAO'; // default
+                    // RBAC triple check — strict: no access record = denied
+                    let perfil = null;
 
-                    try {
-                        const headers = { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}`, 'Accept': 'application/vnd.pgrst.object+json' };
+                    const rbacHeaders = { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}`, 'Accept': 'application/json' };
 
-                        // Check user active
-                        const userResp = await fetch(`${SUPA_URL}/rest/v1/v_sso_usuarios?id=eq.${authData.user.id}&select=id,is_active`, { headers });
-                        if (userResp.ok) {
-                            const userData = await userResp.json();
-                            if (userData && !userData.is_active) throw new Error('Sua conta foi bloqueada pelo administrador.');
-                        }
-
-                        // Check system + access
-                        if (dbSystem && dbSystem.id) {
-                            const accessResp = await fetch(`${SUPA_URL}/rest/v1/v_sso_acesso?usuario_id=eq.${authData.user.id}&sistema_id=eq.${dbSystem.id}&select=id,is_active,perfil_nome`, { headers });
-                            if (accessResp.ok) {
-                                const accessData = await accessResp.json();
-                                if (accessData) {
-                                    if (!accessData.is_active) throw new Error('Seu acesso a este sistema foi revogado.');
-                                    perfil = accessData.perfil_nome || perfil;
-                                }
-                            }
-                        }
-                    } catch (rbacErr) {
-                        if (rbacErr.message.includes('bloqueada') || rbacErr.message.includes('revogado')) {
-                            throw rbacErr;
-                        }
-                        // Network errors — allow through with default profile
+                    // Check user globally active
+                    const userResp = await fetch(`${SUPA_URL}/rest/v1/v_sso_usuarios?id=eq.${authData.user.id}&select=id,is_active`, { headers: rbacHeaders });
+                    if (userResp.ok) {
+                        const users = await userResp.json();
+                        if (users.length === 0) throw new Error('Seu cadastro nao foi encontrado no sistema.');
+                        if (!users[0].is_active) throw new Error('Sua conta foi bloqueada pelo administrador.');
                     }
+
+                    // Check system active + user has explicit access grant
+                    if (!dbSystem || !dbSystem.id) throw new Error('Sistema nao encontrado ou desativado.');
+                    if (!dbSystem.is_active) throw new Error('Este sistema esta desativado.');
+
+                    const accessResp = await fetch(`${SUPA_URL}/rest/v1/v_sso_acesso?usuario_id=eq.${authData.user.id}&sistema_id=eq.${dbSystem.id}&select=is_active,perfil_nome`, { headers: rbacHeaders });
+                    if (!accessResp.ok) throw new Error('Voce nao possui acesso a este sistema.');
+                    const accessRows = await accessResp.json();
+                    if (accessRows.length === 0) throw new Error('Voce nao possui acesso a este sistema.');
+                    if (!accessRows[0].is_active) throw new Error('Seu acesso a este sistema foi revogado.');
+                    perfil = accessRows[0].perfil_nome || 'VISAO';
 
                     const jwtPayload = {
                         ver: 6,

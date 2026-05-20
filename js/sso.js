@@ -1,9 +1,9 @@
 /**
- * CENTRAL SGE — SSO Authentication Handler v4
+ * CENTRAL SGE — SSO Authentication Handler v7
  * Grupo GPS · Autenticação Centralizada · RBAC Enforcement
- * 
- * Usa fetch() direto na REST API do Supabase com header Accept-Profile
- * para acessar o schema gps_compartilhado sem depender do Supabase JS client.
+ *
+ * Usa fetch() direto na REST API do Supabase contra views públicas
+ * (sem Accept-Profile — schema gps_compartilhado exposto via public views).
  */
 
 const SSO_SUPABASE_URL = "https://mgcjidryrjqiceielmzp.supabase.co";
@@ -32,7 +32,7 @@ async function ssoQuery(table, params) {
     return { data, error: null };
 }
 
-// Same but returns array
+// Same but returns array (uses public views — no Accept-Profile needed)
 async function ssoQueryMany(table, params) {
     const url = new URL(`${SSO_SUPABASE_URL}/rest/v1/${table}`);
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
@@ -41,8 +41,7 @@ async function ssoQueryMany(table, params) {
         headers: {
             'apikey': SSO_ANON_KEY,
             'Authorization': `Bearer ${SSO_ANON_KEY}`,
-            'Accept': 'application/json',
-            'Accept-Profile': 'gps_compartilhado'
+            'Accept': 'application/json'
         }
     });
 
