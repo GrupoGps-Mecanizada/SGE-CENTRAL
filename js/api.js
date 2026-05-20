@@ -12,10 +12,10 @@ let _authClient = null;
 // Força Accept-Profile / Content-Profile em toda chamada REST
 function _schemaFetch(url, options = {}) {
     if (typeof url === 'string' && url.includes('/rest/v1/')) {
-        options.headers = Object.assign({}, options.headers, {
-            'Accept-Profile': 'gps_compartilhado',
-            'Content-Profile': 'gps_compartilhado'
-        });
+        const headers = new Headers(options.headers || {});
+        headers.set('Accept-Profile', 'gps_compartilhado');
+        headers.set('Content-Profile', 'gps_compartilhado');
+        options = Object.assign({}, options, { headers });
     }
     return fetch(url, options);
 }
