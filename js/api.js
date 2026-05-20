@@ -33,8 +33,7 @@ async function loginWithEmailPassword(projectUrl, anonKey, email, password) {
         if (error) return { data: null, error };
 
         supabaseClient = supabase.createClient(projectUrl, anonKey, {
-            auth: { persistSession: true, storageKey: 'sge_central_db' },
-            db: { schema: 'gps_compartilhado' }
+            auth: { persistSession: true, storageKey: 'sge_central_db' }
         });
         await supabaseClient.auth.setSession(data.session);
         return { data, error: null };
@@ -52,8 +51,7 @@ async function restoreSession(projectUrl, anonKey) {
         if (!session) return null;
 
         supabaseClient = supabase.createClient(projectUrl, anonKey, {
-            auth: { persistSession: true, storageKey: 'sge_central_db' },
-            db: { schema: 'gps_compartilhado' }
+            auth: { persistSession: true, storageKey: 'sge_central_db' }
         });
         await supabaseClient.auth.setSession(session);
         return session.user.id;
@@ -72,7 +70,7 @@ async function logoutAuth() {
 
 function db() {
     if (!supabaseClient) throw new Error("Supabase não inicializado.");
-    return supabaseClient;
+    return supabaseClient.schema('gps_compartilhado');
 }
 
 // ==================== LEITURA ====================
