@@ -9,22 +9,10 @@
 let supabaseClient = null;
 let _authClient = null;
 
-// Força Accept-Profile / Content-Profile em toda chamada REST
-function _schemaFetch(url, options = {}) {
-    if (typeof url === 'string' && url.includes('/rest/v1/')) {
-        const headers = new Headers(options.headers || {});
-        headers.set('Accept-Profile', 'gps_compartilhado');
-        headers.set('Content-Profile', 'gps_compartilhado');
-        options = Object.assign({}, options, { headers });
-    }
-    return fetch(url, options);
-}
-
 function initSupabase(projectUrl, serviceRoleKey) {
     try {
         supabaseClient = supabase.createClient(projectUrl, serviceRoleKey, {
-            auth: { persistSession: false },
-            global: { fetch: _schemaFetch }
+            auth: { persistSession: false }
         });
         return true;
     } catch (error) {
@@ -44,8 +32,7 @@ async function loginWithEmailPassword(projectUrl, anonKey, email, password) {
         if (error) return { data: null, error };
 
         supabaseClient = supabase.createClient(projectUrl, anonKey, {
-            auth: { persistSession: true, storageKey: 'sge_central_db' },
-            global: { fetch: _schemaFetch }
+            auth: { persistSession: true, storageKey: 'sge_central_db' }
         });
         await supabaseClient.auth.setSession(data.session);
         return { data, error: null };
@@ -63,8 +50,7 @@ async function restoreSession(projectUrl, anonKey) {
         if (!session) return null;
 
         supabaseClient = supabase.createClient(projectUrl, anonKey, {
-            auth: { persistSession: true, storageKey: 'sge_central_db' },
-            global: { fetch: _schemaFetch }
+            auth: { persistSession: true, storageKey: 'sge_central_db' }
         });
         await supabaseClient.auth.setSession(session);
         return session.user.id;
