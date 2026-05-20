@@ -24,9 +24,11 @@ function initSupabase(projectUrl, serviceRoleKey) {
 
 async function loginWithEmailPassword(projectUrl, anonKey, email, password) {
     try {
-        _authClient = supabase.createClient(projectUrl, anonKey, {
-            auth: { persistSession: true, storageKey: 'sge_central_admin' }
-        });
+        if (!_authClient) {
+            _authClient = supabase.createClient(projectUrl, anonKey, {
+                auth: { persistSession: true, storageKey: 'sge_central_admin' }
+            });
+        }
         const { data, error } = await _authClient.auth.signInWithPassword({ email, password });
         if (error) return { data: null, error };
 
@@ -469,7 +471,7 @@ async function checkAdminAccess(userId, projectUrl, anonKey) {
     const headers = {
         'apikey': anonKey,
         'Authorization': `Bearer ${anonKey}`,
-        'Accept': 'application/vnd.pgrst.object+json'
+        'Accept': 'application/json'
     };
 
     const sysUrl = new URL(`${projectUrl}/rest/v1/v_sso_sistemas`);
@@ -479,7 +481,8 @@ async function checkAdminAccess(userId, projectUrl, anonKey) {
 
     const sysResp = await fetch(sysUrl.toString(), { headers });
     if (!sysResp.ok) throw new Error('Sem permissão de administrador.');
-    const sysData = await sysResp.json();
+    const sysArr = await sysResp.json();
+    const sysData = Array.isArray(sysArr) ? sysArr[0] : sysArr;
     if (!sysData?.id) throw new Error('Sem permissão de administrador.');
 
     const accUrl = new URL(`${projectUrl}/rest/v1/v_sso_acesso`);
@@ -489,7 +492,8 @@ async function checkAdminAccess(userId, projectUrl, anonKey) {
 
     const accResp = await fetch(accUrl.toString(), { headers });
     if (!accResp.ok) throw new Error('Sem permissão de administrador.');
-    const accData = await accResp.json();
+    const accArr = await accResp.json();
+    const accData = Array.isArray(accArr) ? accArr[0] : accArr;
 
     if (!accData?.is_active) throw new Error('Sem permissão de administrador.');
     return accData;
