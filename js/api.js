@@ -9,11 +9,22 @@
 let supabaseClient = null;
 let _authClient = null;
 
+// Força Accept-Profile / Content-Profile em toda chamada REST
+function _schemaFetch(url, options = {}) {
+    if (typeof url === 'string' && url.includes('/rest/v1/')) {
+        options.headers = Object.assign({}, options.headers, {
+            'Accept-Profile': 'gps_compartilhado',
+            'Content-Profile': 'gps_compartilhado'
+        });
+    }
+    return fetch(url, options);
+}
+
 function initSupabase(projectUrl, serviceRoleKey) {
     try {
         supabaseClient = supabase.createClient(projectUrl, serviceRoleKey, {
             auth: { persistSession: false },
-            db: { schema: 'gps_compartilhado' }
+            global: { fetch: _schemaFetch }
         });
         return true;
     } catch (error) {
@@ -33,7 +44,8 @@ async function loginWithEmailPassword(projectUrl, anonKey, email, password) {
         if (error) return { data: null, error };
 
         supabaseClient = supabase.createClient(projectUrl, anonKey, {
-            auth: { persistSession: true, storageKey: 'sge_central_db' }
+            auth: { persistSession: true, storageKey: 'sge_central_db' },
+            global: { fetch: _schemaFetch }
         });
         await supabaseClient.auth.setSession(data.session);
         return { data, error: null };
@@ -51,7 +63,8 @@ async function restoreSession(projectUrl, anonKey) {
         if (!session) return null;
 
         supabaseClient = supabase.createClient(projectUrl, anonKey, {
-            auth: { persistSession: true, storageKey: 'sge_central_db' }
+            auth: { persistSession: true, storageKey: 'sge_central_db' },
+            global: { fetch: _schemaFetch }
         });
         await supabaseClient.auth.setSession(session);
         return session.user.id;
@@ -70,7 +83,7 @@ async function logoutAuth() {
 
 function db() {
     if (!supabaseClient) throw new Error("Supabase não inicializado.");
-    return supabaseClient.schema('gps_compartilhado');
+    return supabaseClient;
 }
 
 // ==================== LEITURA ====================
