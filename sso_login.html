@@ -264,6 +264,21 @@
             'apontamentos_mec':     { name: 'Apontamentos',           sector: 'Mecanizada',          icon: 'doc' },
         };
 
+        // Slug aliases — normaliza slugs legados para o slug canônico do banco
+        // Útil quando clientes com cache antigo enviam um slug desatualizado
+        const SLUG_ALIASES = {
+            'relatorio_turno':       'relatorio_turno_mec',
+            'gestao_efetivo':        'gestao_efetivo_mec',
+            'controle_presenca':     'controle_presenca_mec',
+            'controle_medicao':      'controle_medicao_adm',
+            'etilometro':            'etilometro_mec',
+            'almoxarifado':          'almoxarifado_mec',
+            'controle_frota':        'controle_frota_mec',
+            'manutencoes':           'manutencoes_mec',
+            'horas_extras':          'horas_extras_mec',
+            'apontamentos':          'apontamentos_mec',
+        };
+
         // ===== Supabase Config =====
         const SUPA_URL = "https://mgcjidryrjqiceielmzp.supabase.co";
         const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nY2ppZHJ5cmpxaWNlaWVsbXpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMjEwNzEsImV4cCI6MjA4NzY5NzA3MX0.UAKkzy5fMIkrlmnqz9E9KknUw9xhoYpa3f1ptRpOuAA";
@@ -320,7 +335,10 @@
         // ===== Main Init =====
         document.addEventListener('DOMContentLoaded', async () => {
             const urlParams = new URLSearchParams(window.location.search);
-            const appSlug = urlParams.get('app_slug') || 'sge_hub';
+            const rawSlug = urlParams.get('app_slug') || 'sge_hub';
+            // Normaliza slug legado para o slug canônico do banco (evita erro 406)
+            const appSlug = SLUG_ALIASES[rawSlug] || rawSlug;
+            if (appSlug !== rawSlug) console.info(`[SGE SSO] Slug alias resolvido: '${rawSlug}' → '${appSlug}'`);
             const redirectUrl = urlParams.get('redirect');
 
             // 1. Fetch system info dynamically from Supabase
