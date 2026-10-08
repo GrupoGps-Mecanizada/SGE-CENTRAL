@@ -332,6 +332,61 @@
             return resp.ok;
         }
 
+        // ===== Central de Acesso (Fase 2) =====
+        // Para onde o login pode mandar a pessoa (o token não pode ir para site de fora).
+        function redirecionamentoPermitido(url) {
+            try {
+                const u = new URL(url, window.location.href);
+                return (u.origin === 'https://grupogps-mecanizada.github.io')
+                    || ['localhost', '127.0.0.1'].includes(u.hostname);
+            } catch { return false; }
+        }
+
+        // Primeiro acesso (ou senha redefinida pelo admin): obriga a criar a senha própria antes de entrar.
+        function exigirNovaSenha(client, accessToken, senhaProvisoria) {
+            return new Promise((resolve) => {
+                const fundo = document.createElement('div');
+                fundo.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+                fundo.innerHTML = `
+                    <form style="background:#fff;border-radius:14px;max-width:380px;width:100%;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,.25);font-family:inherit;">
+                        <h3 style="margin:0 0 6px;font-size:18px;color:#0f172a;">Crie a sua senha</h3>
+                        <p style="margin:0 0 16px;font-size:13px;color:#475569;">Você entrou com uma senha provisória. Escolha uma senha só sua (mínimo 8 caracteres).</p>
+                        <input id="ns-1" type="password" autocomplete="new-password" placeholder="Nova senha" required minlength="8" style="width:100%;padding:10px;margin-bottom:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;box-sizing:border-box;">
+                        <input id="ns-2" type="password" autocomplete="new-password" placeholder="Repita a nova senha" required minlength="8" style="width:100%;padding:10px;margin-bottom:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;box-sizing:border-box;">
+                        <div id="ns-erro" style="color:#dc2626;font-size:13px;min-height:18px;margin-bottom:8px;"></div>
+                        <button type="submit" style="width:100%;padding:11px;border:0;border-radius:8px;background:#1d4ed8;color:#fff;font-weight:700;font-size:14px;cursor:pointer;">Salvar e entrar</button>
+                    </form>`;
+                document.body.appendChild(fundo);
+                const form = fundo.querySelector('form');
+                const erro = fundo.querySelector('#ns-erro');
+                form.addEventListener('submit', async (ev) => {
+                    ev.preventDefault();
+                    const s1 = fundo.querySelector('#ns-1').value;
+                    const s2 = fundo.querySelector('#ns-2').value;
+                    if (s1.length < 8) { erro.textContent = 'A senha precisa ter pelo menos 8 caracteres.'; return; }
+                    if (s1 !== s2) { erro.textContent = 'As duas senhas não são iguais.'; return; }
+                    if (s1 === senhaProvisoria) { erro.textContent = 'Use uma senha diferente da provisória.'; return; }
+                    const botao = form.querySelector('button');
+                    botao.disabled = true; botao.textContent = 'Salvando...';
+                    const { error } = await client.auth.updateUser({ password: s1 });
+                    if (error) {
+                        erro.textContent = 'Não foi possível salvar: ' + error.message;
+                        botao.disabled = false; botao.textContent = 'Salvar e entrar';
+                        return;
+                    }
+                    try {
+                        await fetch(`${SUPA_URL}/functions/v1/acesso-usuarios`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY, 'Authorization': `Bearer ${accessToken}` },
+                            body: JSON.stringify({ acao: 'senha_trocada' })
+                        });
+                    } catch (_) { /* se falhar, pede de novo no próximo login; a senha já foi trocada */ }
+                    fundo.remove();
+                    resolve();
+                });
+            });
+        }
+
         // ===== Main Init =====
         document.addEventListener('DOMContentLoaded', async () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -436,6 +491,16 @@
 
                     const { data: authData, error: authError } = await localSupabase.auth.signInWithPassword({ email, password: pass });
                     if (authError) throw new Error("Credenciais invalidas. Verifique e-mail e senha.");
+
+                    if (redirectUrl && !redirecionamentoPermitido(redirectUrl)) {
+                        await localSupabase.auth.signOut();
+                        throw new Error('Endereço de retorno não permitido. Abra o sistema pelo Portal SGE.');
+                    }
+
+                    if (authData.user.app_metadata?.trocar_senha) {
+                        btn.innerHTML = 'Crie a sua senha...';
+                        await exigirNovaSenha(localSupabase, authData.session.access_token, pass);
+                    }
 
                     // Build RBAC-checked JWT
                     const meta = authData.user.user_metadata || {};

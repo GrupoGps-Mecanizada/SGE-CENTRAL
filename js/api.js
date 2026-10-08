@@ -231,13 +231,33 @@ async function removeUserSector(userId, setorId) {
 
 // ==================== ESCRITA ====================
 
-async function createUser(payload) {
-    const { data, error } = await db()
-        .from('sge_central_usuarios')
-        .insert(payload)
-        .select();
-    if (error) throw error;
+// Central de Acesso (Fase 2): login, senha e bloqueio passam pela Edge Function acesso-usuarios,
+// que confere no servidor se quem pede é o ADMIN da Central. A senha nunca é gravada em tabela.
+async function chamarAcessoUsuarios(acao, dados = {}) {
+    const { data, error } = await db().functions.invoke('acesso-usuarios', { body: { acao, ...dados } });
+    if (error) {
+        let msg = error.message;
+        try { msg = (await error.context.json()).erro || msg; } catch { /* resposta sem JSON */ }
+        throw new Error(msg);
+    }
     return data;
+}
+
+/** Cria o login de verdade (Auth + Central) e devolve { id, senha } com a senha provisória. */
+async function createUser({ nome, email, setor_id }) {
+    return chamarAcessoUsuarios('criar', { nome, email, setor_id });
+}
+
+async function resetUserPassword(id) {
+    return chamarAcessoUsuarios('redefinir_senha', { id });
+}
+
+async function setUserBlocked(id, bloquear) {
+    return chamarAcessoUsuarios('bloquear', { id, bloquear });
+}
+
+async function markPasswordChanged() {
+    return chamarAcessoUsuarios('senha_trocada');
 }
 
 async function updateUser(id, changes) {
@@ -517,6 +537,9 @@ window.SGE_API = {
     addUserSector,
     removeUserSector,
     createUser,
+    resetUserPassword,
+    setUserBlocked,
+    markPasswordChanged,
     updateUser,
     createSector,
     createSystem,

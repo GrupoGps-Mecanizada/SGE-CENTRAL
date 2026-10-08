@@ -15,7 +15,6 @@ const SUPABASE_PROJECT_URL = "https://mgcjidryrjqiceielmzp.supabase.co";
 let _allSystems = [];
 let _allProfiles = [];
 let _allSectors = [];
-let _serviceKey = '';
 let _radarChannel = null;   // Supabase Presence Channel
 let _radarSupabase = null;  // client separado com anon key
 let _pingInterval = null;   // Admin session keepalive interval
@@ -716,13 +715,14 @@ async function openUserConfig(user) {
                 flex-shrink:0; letter-spacing:0.05em;">
                 ${initials}
             </div>
-            <div>
+            <div style="flex:1; min-width:0;">
                 <div style="display:flex; align-items:center; gap:4px;">
-                    <h3 style="font-size: 18px; margin: 0;">${user.nome}</h3>
+                    <h3 style="font-size: 18px; margin: 0;">${escapeHtml(user.nome)}</h3>
                     ${statusBadge}
                 </div>
-                <div style="font-size:13px; color:var(--text-3); margin-top:4px; font-family:'SF Mono',monospace;">${user.email}</div>
+                <div style="font-size:13px; color:var(--text-3); margin-top:4px; font-family:'SF Mono',monospace;">${escapeHtml(user.email)}</div>
             </div>
+            <button class="btn-secondary btn-sm" id="btn-reset-password" title="Gera uma senha provisória nova">Redefinir senha</button>
         </div>
 
         <div class="user-drawer-body" style="padding: 0; display: grid; gap: 24px; grid-template-columns: 1fr 1fr;">
@@ -868,6 +868,8 @@ async function openUserConfig(user) {
         });
     }
 
+    document.getElementById('btn-reset-password')?.addEventListener('click', () => resetUserPassword(user));
+
     switchPanel('user-config');
 }
 
@@ -883,31 +885,49 @@ async function toggleUserStatus(id, currentActive) {
     if (!await sgeConfirm(msg, currentActive ? 'Bloquear' : 'Ativar')) return;
 
     try {
-        await window.SGE_API.updateUser(id, { is_active: !currentActive });
+        // Bloqueia no login (Auth) e na Central de uma vez, pelo servidor (Edge Function acesso-usuarios).
+        await window.SGE_API.setUserBlocked(id, currentActive);
         await window.SGE_API.insertAuditLog(action, { usuario_id: id });
-        sgeToast('success', currentActive ? 'Usuário bloqueado.' : 'Usuário ativado.');
+        sgeToast('success', currentActive ? 'Usuário bloqueado em todos os sistemas.' : 'Usuário ativado.');
         loadAuditLogs();
-
-        // Attempt to sync Supabase Auth ban
-        try {
-            const resp = await fetch(`${SUPABASE_PROJECT_URL}/auth/v1/admin/users/${id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${_serviceKey}`,
-                    'apikey': _serviceKey
-                },
-                body: JSON.stringify({
-                    ban_duration: currentActive ? '876000h' : 'none'
-                })
-            });
-            if (!resp.ok) console.warn(`[SGE] Auth ban sync failed (${resp.status}) — RBAC still enforced`);
-        } catch (banErr) {
-            console.warn('[SGE] Auth ban request failed:', banErr.message);
-        }
-
         loadUsers();
     } catch (e) { sgeToast('error', e.message); }
+}
+
+async function resetUserPassword(user) {
+    if (!await sgeConfirm(`Gerar uma nova senha provisória para <strong>${escapeHtml(user.nome)}</strong>? A senha atual deixa de valer.`, 'Gerar senha')) return;
+    try {
+        const { senha } = await window.SGE_API.resetUserPassword(user.id);
+        await window.SGE_API.insertAuditLog('REDEFINIR_SENHA', { usuario_id: user.id });
+        loadAuditLogs();
+        showPasswordOnce(user.nome, user.email, senha);
+    } catch (e) { sgeToast('error', e.message); }
+}
+
+/** Mostra a senha provisória UMA vez, com a mensagem pronta para mandar à pessoa. */
+function showPasswordOnce(nome, email, senha) {
+    const link = 'https://grupogps-mecanizada.github.io/SGE_GRUPOGPS/';
+    const mensagem = `Olá, ${nome}! Seu acesso ao SGE está pronto.\n\nEndereço: ${link}\nE-mail: ${email}\nSenha provisória: ${senha}\n\nNo primeiro acesso o sistema vai pedir para você criar a sua senha.`;
+    showModal('Senha provisória', 'Ela aparece só agora. Copie e envie para a pessoa.', `
+        <div class="input-group">
+            <label>E-mail</label>
+            <input readonly value="${escapeHtml(email)}">
+        </div>
+        <div class="input-group">
+            <label>Senha provisória</label>
+            <input id="pw-once" readonly value="${escapeHtml(senha)}" style="font-family:monospace; font-size:16px; letter-spacing:0.5px;">
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn-secondary" id="btn-copy-pw">Copiar senha</button>
+            <button type="button" class="btn-primary" id="btn-copy-msg">Copiar mensagem para WhatsApp</button>
+        </div>
+    `);
+    const copiar = async (texto, aviso) => {
+        try { await navigator.clipboard.writeText(texto); sgeToast('success', aviso); }
+        catch { sgeToast('warning', 'Não consegui copiar. Selecione e copie manualmente.'); }
+    };
+    document.getElementById('btn-copy-pw').addEventListener('click', () => copiar(senha, 'Senha copiada.'));
+    document.getElementById('btn-copy-msg').addEventListener('click', () => copiar(mensagem, 'Mensagem copiada.'));
 }
 
 async function toggleSystemStatus(id, currentActive) {
@@ -928,7 +948,10 @@ async function toggleSystemStatus(id, currentActive) {
 // ──────────────────────────────────────────────────────────
 // MODAIS DE CRIAÇÃO
 // ──────────────────────────────────────────────────────────
-function showModalNewUser() {
+async function showModalNewUser() {
+    if (!_allSectors.length) {
+        try { _allSectors = await window.SGE_API.fetchAllSectors(); } catch (e) { sgeToast('error', e.message); }
+    }
     showModal('Novo Usuário', 'Cadastre um novo operador no ecossistema SGE.', `
         <form id="form-new-user" onsubmit="return false;">
             <div class="input-group">
@@ -937,11 +960,15 @@ function showModalNewUser() {
             </div>
             <div class="input-group">
                 <label>E-mail Corporativo</label>
-                <input id="mu-email" type="email" required placeholder="joao@gps.com.br" autocomplete="off">
+                <input id="mu-email" type="email" required placeholder="joao.silva@gestaogps.com.br" autocomplete="off">
+                <small style="color:var(--text-3); font-size:11px;">Só @gestaogps.com.br ou @gpssa.com.br. A senha provisória é gerada sozinha.</small>
             </div>
             <div class="input-group">
-                <label>Senha Inicial</label>
-                <input id="mu-senha" type="password" required placeholder="Senha temporária" autocomplete="new-password">
+                <label>Setor</label>
+                <select id="mu-setor">
+                    <option value="">Selecionar setor...</option>
+                    ${_allSectors.map(s => `<option value="${s.id}">${escapeHtml(s.sigla)} — ${escapeHtml(s.nome)}</option>`).join('')}
+                </select>
             </div>
             <div class="modal-actions">
                 <button type="button" class="btn-secondary" onclick="closeModal()">Cancelar</button>
@@ -956,17 +983,22 @@ function showModalNewUser() {
     `);
     document.getElementById('btn-submit-user').addEventListener('click', async () => {
         const nome = document.getElementById('mu-nome').value.trim();
-        const email = document.getElementById('mu-email').value.trim();
-        const senha = document.getElementById('mu-senha').value.trim();
-        if (!nome || !email || !senha) { sgeToast('warning', 'Preencha todos os campos.'); return; }
+        const email = document.getElementById('mu-email').value.trim().toLowerCase();
+        const setor_id = document.getElementById('mu-setor').value || null;
+        if (!nome || !email) { sgeToast('warning', 'Preencha nome e e-mail.'); return; }
+        if (!setor_id) { sgeToast('warning', 'Escolha o setor da pessoa.'); return; }
+        const botao = document.getElementById('btn-submit-user');
+        botao.disabled = true;
         try {
-            await window.SGE_API.createUser({ nome, email, senha_hash: senha, is_active: true });
+            const { senha } = await window.SGE_API.createUser({ nome, email, setor_id });
             await window.SGE_API.insertAuditLog('CRIAR_USUARIO', { email, nome });
-            sgeToast('success', `Usuário <strong>${nome}</strong> criado com sucesso.`);
             loadAuditLogs();
-            closeModal();
             loadUsers();
-        } catch (err) { sgeToast('error', err.message); }
+            showPasswordOnce(nome, email, senha);
+        } catch (err) {
+            sgeToast('error', err.message);
+            botao.disabled = false;
+        }
     });
 }
 
