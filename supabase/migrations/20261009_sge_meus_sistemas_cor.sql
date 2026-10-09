@@ -1,3 +1,4 @@
+-- NÃO NECESSÁRIO desde 2026-10-09: a barra usa ícones neutros (sem cor por sistema). Não aplicar.
 -- Barra Universal SGE (sge-core 1.2): sge_meus_sistemas passa a devolver a cor de cada sistema.
 -- Mesmo corpo de sge-portal/sql/20261008_portal_sge.sql, só com 'cor' a mais. Aplicar com o OK do Warlison.
 create or replace function public.sge_meus_sistemas()
