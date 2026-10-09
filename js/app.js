@@ -1043,6 +1043,35 @@ function showModalNewSector() {
     });
 }
 
+// Campos do menu do Portal SGE (área, ordem e "abre fora"); prefixo = 'msys' (novo) ou 'esys' (editar).
+function camposMenuPortalHtml(prefixo, sys = {}) {
+    const area = String(sys.area_menu || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    return `
+            <div class="input-group">
+                <label>Área do menu <span style="color:var(--text-3); font-weight:400;">(grupo no Portal SGE, ex: Mecanizada)</span></label>
+                <input id="${prefixo}-area" value="${area}" placeholder="Ex: Mecanizada">
+            </div>
+            <div class="input-group">
+                <label>Ordem <span style="color:var(--text-3); font-weight:400;">(posição no menu; menor aparece primeiro)</span></label>
+                <input id="${prefixo}-ordem" type="number" step="1" value="${sys.ordem ?? ''}" placeholder="Ex: 10">
+            </div>
+            <div class="input-group">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input id="${prefixo}-fora" type="checkbox" ${sys.abre_fora ? 'checked' : ''} style="width:auto;">
+                    Abre fora <span style="color:var(--text-3); font-weight:400;">(abre em aba nova, fora do portal)</span>
+                </label>
+            </div>`;
+}
+
+function lerCamposMenuPortal(prefixo) {
+    const ordem = document.getElementById(`${prefixo}-ordem`).value.trim();
+    return {
+        area_menu: document.getElementById(`${prefixo}-area`).value.trim() || null,
+        ordem: ordem === '' ? null : parseInt(ordem, 10),
+        abre_fora: document.getElementById(`${prefixo}-fora`).checked
+    };
+}
+
 function showModalNewSystem() {
     showModal('Novo Sistema', 'Registre um sistema satélite no Ecossistema SGE.', `
         <form id="form-new-system" onsubmit="return false;">
@@ -1058,6 +1087,7 @@ function showModalNewSystem() {
                 <label>URL de Origem <span style="color:var(--text-3); font-weight:400;">(opcional)</span></label>
                 <input id="msys-url" placeholder="https://...">
             </div>
+            ${camposMenuPortalHtml('msys')}
             <div class="modal-actions">
                 <button type="button" class="btn-secondary" onclick="closeModal()">Cancelar</button>
                 <button type="submit" class="btn-primary" id="btn-submit-system">Registrar Sistema</button>
@@ -1072,6 +1102,7 @@ function showModalNewSystem() {
             await window.SGE_API.createSystem({
                 nome, slug,
                 url_origem: document.getElementById('msys-url').value.trim(),
+                ...lerCamposMenuPortal('msys'),
                 is_active: true
             });
             await window.SGE_API.insertAuditLog('CRIAR_SISTEMA', { slug, nome });
@@ -1583,6 +1614,7 @@ function showModalEditSystem(system) {
                 <label>URL de Origem <span style="color:var(--text-3); font-weight:400;">(opcional)</span></label>
                 <input id="esys-url" value="${system.url_origem || ''}" placeholder="https://...">
             </div>
+            ${camposMenuPortalHtml('esys', system)}
             <div class="modal-actions">
                 <button type="button" class="btn-secondary" onclick="closeModal()">Cancelar</button>
                 <button type="submit" class="btn-primary" id="btn-submit-edit-system">
@@ -1601,7 +1633,8 @@ function showModalEditSystem(system) {
         try {
             await window.SGE_API.updateSystem(system.id, {
                 nome, slug,
-                url_origem: document.getElementById('esys-url').value.trim() || null
+                url_origem: document.getElementById('esys-url').value.trim() || null,
+                ...lerCamposMenuPortal('esys')
             });
             await window.SGE_API.insertAuditLog('EDITAR_SISTEMA', { sistema_id: system.id, nome, slug });
             sgeToast('success', `Sistema <strong>${nome}</strong> atualizado.`);

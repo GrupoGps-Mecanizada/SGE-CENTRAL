@@ -252,6 +252,7 @@
         // Fallback dictionary (used when Supabase fetch fails)
         const FALLBACK_DICT = {
             'sge_hub':              { name: 'SGE Central',            sector: 'Corporativo / TI',   icon: 'default' },
+            'sge_portal':           { name: 'Portal SGE',             sector: 'Corporativo / TI',   icon: 'default' },
             'gestao_efetivo_mec':   { name: 'Gestao de Efetivo',      sector: 'Mecanizada',          icon: 'people' },
             'relatorio_turno_mec':  { name: 'Relatorio de Turno',     sector: 'Mecanizada',          icon: 'doc' },
             'controle_presenca_mec':{ name: 'Controle de Presenca',   sector: 'Mecanizada',          icon: 'clock' },
@@ -337,8 +338,11 @@
         function redirecionamentoPermitido(url) {
             try {
                 const u = new URL(url, window.location.href);
-                return (u.origin === 'https://grupogps-mecanizada.github.io')
-                    || ['localhost', '127.0.0.1'].includes(u.hostname);
+                if (u.origin === 'https://grupogps-mecanizada.github.io') return true;
+                // Portal SGE (Cloudflare) e os endereços de teste de cada mudança (<nome>.sge-portal.pages.dev)
+                if (u.protocol === 'https:' && !u.port
+                    && (u.hostname === 'sge-portal.pages.dev' || u.hostname.endsWith('.sge-portal.pages.dev'))) return true;
+                return ['localhost', '127.0.0.1'].includes(u.hostname);
             } catch { return false; }
         }
 
@@ -395,6 +399,8 @@
             const appSlug = SLUG_ALIASES[rawSlug] || rawSlug;
             if (appSlug !== rawSlug) console.info(`[SGE SSO] Slug alias resolvido: '${rawSlug}' → '${appSlug}'`);
             const redirectUrl = urlParams.get('redirect');
+            // Portal SGE: só exige usuário ativo; cada sistema confere o próprio acesso depois.
+            const ehPortal = appSlug === 'sge_portal';
 
             // 1. Fetch system info dynamically from Supabase
             const dbSystem = await fetchSystemFromDB(appSlug);
@@ -513,22 +519,25 @@
 
                     // Check user globally active
                     const userResp = await fetch(`${SUPA_URL}/rest/v1/v_sso_usuarios?id=eq.${authData.user.id}&select=id,is_active`, { headers: rbacHeaders });
+                    if (ehPortal && !userResp.ok) throw new Error('Nao foi possivel conferir seu cadastro. Tente de novo.');
                     if (userResp.ok) {
                         const users = await userResp.json();
                         if (users.length === 0) throw new Error('Seu cadastro nao foi encontrado no sistema.');
                         if (!users[0].is_active) throw new Error('Sua conta foi bloqueada pelo administrador.');
                     }
 
-                    // Check system active + user has explicit access grant
-                    if (!dbSystem || !dbSystem.id) throw new Error('Sistema nao encontrado ou desativado.');
-                    if (!dbSystem.is_active) throw new Error('Este sistema esta desativado.');
+                    if (!ehPortal) {
+                        // Check system active + user has explicit access grant
+                        if (!dbSystem || !dbSystem.id) throw new Error('Sistema nao encontrado ou desativado.');
+                        if (!dbSystem.is_active) throw new Error('Este sistema esta desativado.');
 
-                    const accessResp = await fetch(`${SUPA_URL}/rest/v1/v_sso_acesso?usuario_id=eq.${authData.user.id}&sistema_id=eq.${dbSystem.id}&select=is_active,perfil_nome`, { headers: rbacHeaders });
-                    if (!accessResp.ok) throw new Error('Voce nao possui acesso a este sistema.');
-                    const accessRows = await accessResp.json();
-                    if (accessRows.length === 0) throw new Error('Voce nao possui acesso a este sistema.');
-                    if (!accessRows[0].is_active) throw new Error('Seu acesso a este sistema foi revogado.');
-                    perfil = accessRows[0].perfil_nome || 'VISAO';
+                        const accessResp = await fetch(`${SUPA_URL}/rest/v1/v_sso_acesso?usuario_id=eq.${authData.user.id}&sistema_id=eq.${dbSystem.id}&select=is_active,perfil_nome`, { headers: rbacHeaders });
+                        if (!accessResp.ok) throw new Error('Voce nao possui acesso a este sistema.');
+                        const accessRows = await accessResp.json();
+                        if (accessRows.length === 0) throw new Error('Voce nao possui acesso a este sistema.');
+                        if (!accessRows[0].is_active) throw new Error('Seu acesso a este sistema foi revogado.');
+                        perfil = accessRows[0].perfil_nome || 'VISAO';
+                    }
 
                     const jwtPayload = {
                         ver: 6,
@@ -542,7 +551,7 @@
                     // Register session
                     let sessionId = null;
                     try {
-                        if (appSlug !== 'sge_hub' && dbSystem) {
+                        if (appSlug !== 'sge_hub' && !ehPortal && dbSystem) {
                             const authSb = window.supabase.createClient(SUPA_URL, SUPA_KEY, {
                                 db: { schema: 'gps_compartilhado' },
                                 global: { headers: { 'Authorization': `Bearer ${authData.session.access_token}` } }

@@ -1,5 +1,11 @@
 # Mudanças da SGE Central
 
+## v2.1.0 · 2026-10-08 · Login do Portal SGE
+Plano: `D:/SEGUNDO CEREBRO - IDE/2 - Projetos/SGE/Departamentos/9 - Programação/Plano do Portal SGE.md` (seção 4)
+- Login aceita voltar para `https://sge-portal.pages.dev` e para os endereços de teste `https://*.sge-portal.pages.dev`; para outros endereços, continua recusando.
+- `app_slug=sge_portal`: exige só usuário cadastrado e ativo (sem acesso a um sistema específico). Se não conseguir conferir o cadastro, recusa o login. Não registra sessão de sistema.
+- Tela de Sistemas (novo e editar): campos "Área do menu", "Ordem" e "Abre fora" (`area_menu`, `ordem`, `abre_fora`).
+
 ## v2.0.0 · 2026-10-08 · Central de Acesso (Fases 0 a 2)
 Plano: `D:/SEGUNDO CEREBRO - IDE/2 - Projetos/SGE/Departamentos/9 - Programação/Plano da Central de Acesso.md`
 
