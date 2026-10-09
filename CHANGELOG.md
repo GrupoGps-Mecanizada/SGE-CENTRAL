@@ -1,5 +1,10 @@
 # Mudanças da SGE Central
 
+## v2.3.0 · 2026-10-09 · Login único e "Mostrar no portal"
+- **Login único:** quem já entrou no SGE (portal ou outro sistema, mesma sessão) não digita a senha de novo: a página de login confere cadastro e acesso e segue direto para o sistema. Senha provisória continua obrigando a trocar.
+- Tela de Sistemas: caixinha **Mostrar no portal** (desmarcada: o sistema some do portal e da grade da Barra Universal, mas continua funcionando).
+- Banco (aplicado): coluna `mostrar_portal`; Medição, Apontamentos, Controle de Frota antigo, Presença, Horas Extras e Manutenções escondidos do portal; Monitoramento de Produtividade cadastrado como "Controle de Frota" (área Frota), com acesso para os administradores da Central.
+
 ## v2.2.0 · 2026-10-09 · Ícone de cada sistema
 - Tela de Sistemas (novo e editar): seletor de **ícone** (grade com os ícones do `sge-icones.js` do sge-core). O ícone aparece na grade de sistemas da Barra Universal e no Portal SGE. Sem cor por sistema: todos os ícones ficam no mesmo tom neutro.
 

@@ -465,6 +465,88 @@
                 }
             });
 
+            // Depois da senha (ou com a sessão que já existe): confere cadastro e acesso e devolve a pessoa ao sistema.
+            async function concluirEntrada(user, session) {
+                const email = user.email || '';
+                // Build RBAC-checked JWT
+                const meta = user.user_metadata || {};
+                const userName = meta.full_name || meta.nome || email.split('@')[0];
+
+                // RBAC triple check — strict: no access record = denied
+                let perfil = null;
+
+                const rbacHeaders = { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}`, 'Accept': 'application/json' };
+
+                // Check user globally active
+                const userResp = await fetch(`${SUPA_URL}/rest/v1/v_sso_usuarios?id=eq.${user.id}&select=id,is_active`, { headers: rbacHeaders });
+                if (ehPortal && !userResp.ok) throw new Error('Nao foi possivel conferir seu cadastro. Tente de novo.');
+                if (userResp.ok) {
+                    const users = await userResp.json();
+                    if (users.length === 0) throw new Error('Seu cadastro nao foi encontrado no sistema.');
+                    if (!users[0].is_active) throw new Error('Sua conta foi bloqueada pelo administrador.');
+                }
+
+                if (!ehPortal) {
+                    // Check system active + user has explicit access grant
+                    if (!dbSystem || !dbSystem.id) throw new Error('Sistema nao encontrado ou desativado.');
+                    if (!dbSystem.is_active) throw new Error('Este sistema esta desativado.');
+
+                    const accessResp = await fetch(`${SUPA_URL}/rest/v1/v_sso_acesso?usuario_id=eq.${user.id}&sistema_id=eq.${dbSystem.id}&select=is_active,perfil_nome`, { headers: rbacHeaders });
+                    if (!accessResp.ok) throw new Error('Voce nao possui acesso a este sistema.');
+                    const accessRows = await accessResp.json();
+                    if (accessRows.length === 0) throw new Error('Voce nao possui acesso a este sistema.');
+                    if (!accessRows[0].is_active) throw new Error('Seu acesso a este sistema foi revogado.');
+                    perfil = accessRows[0].perfil_nome || 'VISAO';
+                }
+
+                const jwtPayload = {
+                    ver: 6,
+                    sub: user.id,
+                    user: { id: user.id, email, nome: userName, perfil },
+                    app_slug: appSlug,
+                    iat: Math.floor(Date.now() / 1000),
+                    exp: Math.floor(Date.now() / 1000) + (60 * 60 * 8)
+                };
+
+                // Register session
+                let sessionId = null;
+                try {
+                    if (appSlug !== 'sge_hub' && !ehPortal && dbSystem) {
+                        const authSb = window.supabase.createClient(SUPA_URL, SUPA_KEY, {
+                            db: { schema: 'gps_compartilhado' },
+                            global: { headers: { 'Authorization': `Bearer ${session.access_token}` } }
+                        });
+                        const { data: sessData } = await authSb.from('sge_central_sessoes').insert({
+                            usuario_id: user.id, sistema_id: dbSystem.id,
+                            ip_address: '0.0.0.0', user_agent: navigator.userAgent.substring(0, 200),
+                            expira_em: new Date(Date.now() + 28800000).toISOString()
+                        }).select('id').single();
+                        if (sessData) sessionId = sessData.id;
+                    }
+                } catch (_) {}
+
+                // Save session metadata for satellite ping/widget
+                try {
+                    localStorage.setItem('sge_session_id', sessionId || '');
+                    localStorage.setItem('sge_session_user_id', user.id);
+                    localStorage.setItem('sge_session_token', session.access_token);
+                    localStorage.setItem('sge_session_user_name', userName);
+                    localStorage.setItem('sge_session_user_email', email);
+                    localStorage.setItem('sge_session_app_slug', appSlug);
+                    localStorage.setItem('sge_session_app_name', sysName);
+                } catch (_) {}
+
+                // Generate JWT
+                const payloadBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(jwtPayload))));
+                const jwtToken = `eyJhbGciOiJIUzI1NiJ9.${payloadBase64}.sge_central_sig`;
+
+                if (redirectUrl) {
+                    window.location.href = `${redirectUrl}${redirectUrl.includes('?') ? '&' : '?'}sso_token=${jwtToken}`;
+                } else {
+                    window.location.href = `/?sso_token=${jwtToken}`;
+                }
+            }
+
             // 5. Login form submit
             document.getElementById('sso-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -508,89 +590,33 @@
                         await exigirNovaSenha(localSupabase, authData.session.access_token, pass);
                     }
 
-                    // Build RBAC-checked JWT
-                    const meta = authData.user.user_metadata || {};
-                    const userName = meta.full_name || meta.nome || email.split('@')[0];
-
-                    // RBAC triple check — strict: no access record = denied
-                    let perfil = null;
-
-                    const rbacHeaders = { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}`, 'Accept': 'application/json' };
-
-                    // Check user globally active
-                    const userResp = await fetch(`${SUPA_URL}/rest/v1/v_sso_usuarios?id=eq.${authData.user.id}&select=id,is_active`, { headers: rbacHeaders });
-                    if (ehPortal && !userResp.ok) throw new Error('Nao foi possivel conferir seu cadastro. Tente de novo.');
-                    if (userResp.ok) {
-                        const users = await userResp.json();
-                        if (users.length === 0) throw new Error('Seu cadastro nao foi encontrado no sistema.');
-                        if (!users[0].is_active) throw new Error('Sua conta foi bloqueada pelo administrador.');
-                    }
-
-                    if (!ehPortal) {
-                        // Check system active + user has explicit access grant
-                        if (!dbSystem || !dbSystem.id) throw new Error('Sistema nao encontrado ou desativado.');
-                        if (!dbSystem.is_active) throw new Error('Este sistema esta desativado.');
-
-                        const accessResp = await fetch(`${SUPA_URL}/rest/v1/v_sso_acesso?usuario_id=eq.${authData.user.id}&sistema_id=eq.${dbSystem.id}&select=is_active,perfil_nome`, { headers: rbacHeaders });
-                        if (!accessResp.ok) throw new Error('Voce nao possui acesso a este sistema.');
-                        const accessRows = await accessResp.json();
-                        if (accessRows.length === 0) throw new Error('Voce nao possui acesso a este sistema.');
-                        if (!accessRows[0].is_active) throw new Error('Seu acesso a este sistema foi revogado.');
-                        perfil = accessRows[0].perfil_nome || 'VISAO';
-                    }
-
-                    const jwtPayload = {
-                        ver: 6,
-                        sub: authData.user.id,
-                        user: { id: authData.user.id, email, nome: userName, perfil },
-                        app_slug: appSlug,
-                        iat: Math.floor(Date.now() / 1000),
-                        exp: Math.floor(Date.now() / 1000) + (60 * 60 * 8)
-                    };
-
-                    // Register session
-                    let sessionId = null;
-                    try {
-                        if (appSlug !== 'sge_hub' && !ehPortal && dbSystem) {
-                            const authSb = window.supabase.createClient(SUPA_URL, SUPA_KEY, {
-                                db: { schema: 'gps_compartilhado' },
-                                global: { headers: { 'Authorization': `Bearer ${authData.session.access_token}` } }
-                            });
-                            const { data: sessData } = await authSb.from('sge_central_sessoes').insert({
-                                usuario_id: authData.user.id, sistema_id: dbSystem.id,
-                                ip_address: '0.0.0.0', user_agent: navigator.userAgent.substring(0, 200),
-                                expira_em: new Date(Date.now() + 28800000).toISOString()
-                            }).select('id').single();
-                            if (sessData) sessionId = sessData.id;
-                        }
-                    } catch (_) {}
-
-                    // Save session metadata for satellite ping/widget
-                    try {
-                        localStorage.setItem('sge_session_id', sessionId || '');
-                        localStorage.setItem('sge_session_user_id', authData.user.id);
-                        localStorage.setItem('sge_session_token', authData.session.access_token);
-                        localStorage.setItem('sge_session_user_name', userName);
-                        localStorage.setItem('sge_session_user_email', email);
-                        localStorage.setItem('sge_session_app_slug', appSlug);
-                        localStorage.setItem('sge_session_app_name', sysName);
-                    } catch (_) {}
-
-                    // Generate JWT
-                    const payloadBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(jwtPayload))));
-                    const jwtToken = `eyJhbGciOiJIUzI1NiJ9.${payloadBase64}.sge_central_sig`;
-
-                    if (redirectUrl) {
-                        window.location.href = `${redirectUrl}${redirectUrl.includes('?') ? '&' : '?'}sso_token=${jwtToken}`;
-                    } else {
-                        window.location.href = `/?sso_token=${jwtToken}`;
-                    }
+                    await concluirEntrada(authData.user, authData.session);
                 } catch (error) {
                     err.textContent = error.message;
                     btn.disabled = false;
                     btn.textContent = 'Entrar';
                 }
             });
+
+            // 6. Login único: já entrou no SGE (portal ou outro sistema, mesma sessão)? Segue direto, sem pedir a senha de novo.
+            //    Quem precisa trocar a senha provisória ou vem de um endereço não permitido passa pelo formulário.
+            try {
+                const { data: atual } = await window.supabase.createClient(SUPA_URL, SUPA_KEY).auth.getSession();
+                const sessaoAtual = atual && atual.session;
+                const precisaTrocar = sessaoAtual && sessaoAtual.user.app_metadata && sessaoAtual.user.app_metadata.trocar_senha;
+                if (sessaoAtual && !precisaTrocar && (!redirectUrl || redirecionamentoPermitido(redirectUrl))) {
+                    const btnAuto = document.getElementById('btn-submit');
+                    btnAuto.disabled = true;
+                    btnAuto.innerHTML = '<span class="btn-spinner"></span>Entrando com a sua conta...';
+                    try {
+                        await concluirEntrada(sessaoAtual.user, sessaoAtual);
+                    } catch (erroAuto) {
+                        document.getElementById('error-msg').textContent = erroAuto.message;
+                        btnAuto.disabled = false;
+                        btnAuto.textContent = 'Entrar';
+                    }
+                }
+            } catch (_) { /* sem sessão guardada: segue com o formulário */ }
         });
     </script>
 </body>

@@ -1066,6 +1066,12 @@ function camposMenuPortalHtml(prefixo, sys = {}) {
                     <input id="${prefixo}-fora" type="checkbox" ${sys.abre_fora ? 'checked' : ''} style="width:auto;">
                     Abre fora <span style="color:var(--text-3); font-weight:400;">(abre em aba nova, fora do portal)</span>
                 </label>
+            </div>
+            <div class="input-group">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input id="${prefixo}-portal" type="checkbox" ${sys.mostrar_portal === false ? '' : 'checked'} style="width:auto;">
+                    Mostrar no portal <span style="color:var(--text-3); font-weight:400;">(desmarcado: some do portal, mas continua funcionando)</span>
+                </label>
             </div>`;
 }
 
@@ -1104,7 +1110,8 @@ function lerCamposMenuPortal(prefixo) {
         icone: document.getElementById(`${prefixo}-icone`).value || null,
         area_menu: document.getElementById(`${prefixo}-area`).value.trim() || null,
         ordem: ordem === '' ? null : parseInt(ordem, 10),
-        abre_fora: document.getElementById(`${prefixo}-fora`).checked
+        abre_fora: document.getElementById(`${prefixo}-fora`).checked,
+        mostrar_portal: document.getElementById(`${prefixo}-portal`).checked
     };
 }
 
