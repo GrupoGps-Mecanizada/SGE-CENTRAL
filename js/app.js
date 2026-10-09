@@ -1043,10 +1043,16 @@ function showModalNewSector() {
     });
 }
 
-// Campos do menu do Portal SGE (área, ordem e "abre fora"); prefixo = 'msys' (novo) ou 'esys' (editar).
+// Campos do menu do Portal SGE (ícone, área, ordem e "abre fora"); prefixo = 'msys' (novo) ou 'esys' (editar).
 function camposMenuPortalHtml(prefixo, sys = {}) {
     const area = String(sys.area_menu || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    const icone = /^[a-z-]+$/.test(sys.icone || '') ? sys.icone : '';
     return `
+            <div class="input-group">
+                <label>Ícone <span style="color:var(--text-3); font-weight:400;">(aparece na grade de sistemas e na barra)</span></label>
+                <div id="${prefixo}-icones" class="seletor-icones" role="radiogroup" aria-label="Ícone do sistema"></div>
+                <input id="${prefixo}-icone" type="hidden" value="${icone}">
+            </div>
             <div class="input-group">
                 <label>Área do menu <span style="color:var(--text-3); font-weight:400;">(grupo no Portal SGE, ex: Mecanizada)</span></label>
                 <input id="${prefixo}-area" value="${area}" placeholder="Ex: Mecanizada">
@@ -1063,9 +1069,39 @@ function camposMenuPortalHtml(prefixo, sys = {}) {
             </div>`;
 }
 
+// Ícones que são da própria barra (não servem para identificar um sistema).
+const ICONES_SO_DA_BARRA = ['abrir-fora', 'fechar', 'menu', 'sair', 'search', 'seta-baixo', 'tema'];
+
+// Monta a grade de ícones (do sge-icones.js) depois que a janela abre.
+function ligarSeletorIcone(prefixo) {
+    const caixa = document.getElementById(`${prefixo}-icones`);
+    const oculto = document.getElementById(`${prefixo}-icone`);
+    if (!caixa || !oculto) return;
+    if (!window.SGE || typeof window.SGE.icone !== 'function') {
+        caixa.textContent = 'Ícones indisponíveis agora (confira a internet).';
+        return;
+    }
+    const escolhido = () => (oculto.value ? window.SGE.icone(oculto.value).getAttribute('data-icone') : 'grade');
+    const marcar = () => caixa.querySelectorAll('.icone-opcao').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.icone === escolhido())));
+    window.SGE.icones.filter((n) => !ICONES_SO_DA_BARRA.includes(n)).forEach((nome) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'icone-opcao';
+        b.dataset.icone = nome;
+        b.title = nome;
+        b.setAttribute('role', 'radio');
+        b.setAttribute('aria-label', nome);
+        b.appendChild(window.SGE.icone(nome, 20));
+        b.addEventListener('click', () => { oculto.value = nome; marcar(); });
+        caixa.appendChild(b);
+    });
+    marcar();
+}
+
 function lerCamposMenuPortal(prefixo) {
     const ordem = document.getElementById(`${prefixo}-ordem`).value.trim();
     return {
+        icone: document.getElementById(`${prefixo}-icone`).value || null,
         area_menu: document.getElementById(`${prefixo}-area`).value.trim() || null,
         ordem: ordem === '' ? null : parseInt(ordem, 10),
         abre_fora: document.getElementById(`${prefixo}-fora`).checked
@@ -1094,6 +1130,7 @@ function showModalNewSystem() {
             </div>
         </form>
     `);
+    ligarSeletorIcone('msys');
     document.getElementById('btn-submit-system').addEventListener('click', async () => {
         const nome = document.getElementById('msys-nome').value.trim();
         const slug = document.getElementById('msys-slug').value.trim().toLowerCase().replace(/\s+/g, '_');
@@ -1626,6 +1663,7 @@ function showModalEditSystem(system) {
             </div>
         </form>
     `);
+    ligarSeletorIcone('esys');
     document.getElementById('btn-submit-edit-system').addEventListener('click', async () => {
         const nome = document.getElementById('esys-nome').value.trim();
         const slug = document.getElementById('esys-slug').value.trim().toLowerCase().replace(/\s+/g, '_');

@@ -305,6 +305,12 @@ body {
 }
 
 /* ===================== INPUT GROUP ===================== */
+/* Seletor de ícone do sistema (tela de Sistemas) */
+.seletor-icones { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 6px; max-height: 148px; overflow-y: auto; padding: 6px; border: 1.5px solid var(--border); border-radius: var(--radius); background: var(--bg-2); }
+.icone-opcao { display: grid; place-items: center; height: 40px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--text-2); cursor: pointer; }
+.icone-opcao:hover { background: var(--bg-1); color: var(--text-1); }
+.icone-opcao[aria-checked="true"] { border-color: var(--accent); color: var(--accent); background: var(--bg-1); box-shadow: 0 0 0 3px var(--accent-glow-md); }
+
 .input-group {
     display: flex;
     flex-direction: column;

@@ -1,5 +1,8 @@
 # Mudanças da SGE Central
 
+## v2.2.0 · 2026-10-09 · Ícone de cada sistema
+- Tela de Sistemas (novo e editar): seletor de **ícone** (grade com os ícones do `sge-icones.js` do sge-core). O ícone aparece na grade de sistemas da Barra Universal e no Portal SGE. Sem cor por sistema: todos os ícones ficam no mesmo tom neutro.
+
 ## v2.1.0 · 2026-10-08 · Login do Portal SGE
 Plano: `D:/SEGUNDO CEREBRO - IDE/2 - Projetos/SGE/Departamentos/9 - Programação/Plano do Portal SGE.md` (seção 4)
 - Login aceita voltar para `https://sge-portal.pages.dev` e para os endereços de teste `https://*.sge-portal.pages.dev`; para outros endereços, continua recusando.
