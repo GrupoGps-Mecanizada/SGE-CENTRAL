@@ -906,7 +906,7 @@ async function resetUserPassword(user) {
 
 /** Mostra a senha provisória UMA vez, com a mensagem pronta para mandar à pessoa. */
 function showPasswordOnce(nome, email, senha) {
-    const link = 'https://grupogps-mecanizada.github.io/SGE_GRUPOGPS/';
+    const link = 'https://sge-portal.pages.dev/';
     const mensagem = `Olá, ${nome}! Seu acesso ao SGE está pronto.\n\nEndereço: ${link}\nE-mail: ${email}\nSenha provisória: ${senha}\n\nNo primeiro acesso o sistema vai pedir para você criar a sua senha.`;
     showModal('Senha provisória', 'Ela aparece só agora. Copie e envie para a pessoa.', `
         <div class="input-group">
