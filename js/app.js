@@ -661,25 +661,43 @@ async function openUserConfig(user) {
         ? '<span class="status-badge active" style="margin-left:6px; font-size:11px;">Ativo</span>'
         : '<span class="status-badge blocked" style="margin-left:6px; font-size:11px;">Bloqueado</span>';
 
+    // Régua única de acesso: 6 níveis iguais em todos os sistemas (js/regua.js)
+    const R = window.SGE_REGUA;
+    const meuId = await window.SGE_API.getMeuId();
+    const opcoesPapel = (atual) => {
+        const lista = R.PAPEIS.map(p => `<option value="${p.codigo}" ${p.codigo === atual ? 'selected' : ''}>${p.nome}</option>`);
+        if (atual && !R.papel(atual)) lista.unshift(`<option value="${escapeHtml(atual)}" selected>${escapeHtml(atual)}</option>`);
+        return lista.join('');
+    };
+    const notaPapel = (codigo, slug) => {
+        const p = R.papel(codigo);
+        const av = R.aviso(codigo, slug);
+        return (p ? escapeHtml(p.explica) : '')
+            + (av ? `<br><span style="color:var(--warning, #b45309); font-weight:600;">${escapeHtml(av)}</span>` : '');
+    };
+
     // Access list HTML
     const accessHtml = userAccess.length
         ? userAccess.map(a => {
-            const isActive = a.is_active !== false;
+            const isActive = a.ativo !== false;
+            const slug = a.sistema?.slug || '';
+            const trava = R.podeMexer(a, meuId) ? '' : 'disabled title="Seu próprio acesso à Central não pode ser alterado aqui."';
             return `
-                <div class="access-row">
+                <div class="access-row" style="flex-wrap:wrap;">
                     <div style="flex:1; min-width:0;">
-                        <div class="system-name">${a.sistema?.nome || '?'}</div>
-                        <div class="system-slug">${a.sistema?.slug || ''}</div>
+                        <div class="system-name">${escapeHtml(a.sistema?.nome || '?')}</div>
+                        <div class="system-slug">${escapeHtml(slug)}</div>
                     </div>
-                    <select class="profile-select" data-access-id="${a.id}" title="Perfil de acesso">
-                        ${_allProfiles.map(p => `<option value="${p.id}" ${p.id === a.perfil_id ? 'selected' : ''}>${p.nome} · nv.${p.nivel}</option>`).join('')}
+                    <select class="profile-select" data-access-id="${a.id}" data-slug="${escapeHtml(slug)}" title="Nível de acesso" ${trava}>
+                        ${opcoesPapel(a.papel)}
                     </select>
                     <button class="btn-sm ${isActive ? 'btn-danger' : 'btn-primary'}"
                         data-toggle-access-id="${a.id}" data-current-active="${isActive}"
-                        title="${isActive ? 'Desativar acesso' : 'Ativar acesso'}">
+                        title="${isActive ? 'Desativar acesso' : 'Ativar acesso'}" ${trava}>
                         ${isActive ? 'Desativar' : 'Ativar'}
                     </button>
-                    <button class="btn-revoke" data-revoke-access-id="${a.id}" title="Revogar permanentemente">✕</button>
+                    <button class="btn-revoke" data-revoke-access-id="${a.id}" title="Revogar permanentemente" ${trava}>✕</button>
+                    <div class="papel-nota" style="flex-basis:100%; font-size:11px; color:var(--text-3); margin-top:4px;">${notaPapel(a.papel, slug)}</div>
                 </div>
             `;
         }).join('')
@@ -745,18 +763,19 @@ async function openUserConfig(user) {
 
             <!-- ACESSOS RBAC -->
             <div class="user-drawer-section" style="background: var(--bg-2); padding: 16px; border-radius: var(--radius); border: 1px solid var(--border);">
-                <h4>Acesso aos Sistemas · RBAC</h4>
+                <h4>Acesso aos Sistemas · Nível</h4>
                 <div id="user-access-list" style="margin-bottom: 12px;">${accessHtml}</div>
                 ${availableSystems.length ? `
                 <div class="grant-row" style="flex-wrap:wrap;">
                     <select id="grant-system-select" style="flex:1; min-width:120px;">
                         <option value="">Selecionar sistema...</option>
-                        ${availableSystems.map(s => `<option value="${s.id}">${s.nome}</option>`).join('')}
+                        ${availableSystems.map(s => `<option value="${s.id}" data-slug="${escapeHtml(s.slug)}">${escapeHtml(s.nome)}</option>`).join('')}
                     </select>
-                    <select id="grant-profile-select" style="flex:1; min-width:120px;">
-                        ${_allProfiles.map(p => `<option value="${p.id}">${p.nome} · nv.${p.nivel}</option>`).join('')}
+                    <select id="grant-profile-select" style="flex:1; min-width:120px;" title="Nível de acesso">
+                        ${opcoesPapel(R.PAPEL_PADRAO)}
                     </select>
                     <button class="btn-primary btn-sm" id="btn-grant-access">Conceder</button>
+                    <div id="grant-papel-nota" class="papel-nota" style="flex-basis:100%; font-size:11px; color:var(--text-3); margin-top:4px;">${notaPapel(R.PAPEL_PADRAO, '')}</div>
                 </div>` : `
                 <div style="color:var(--green); font-size:12px; margin-top:10px; font-weight:600;">
                     ✓ Acesso a todos os sistemas configurado
@@ -773,12 +792,17 @@ async function openUserConfig(user) {
                 await window.SGE_API.insertAuditLog('ALTERAR_PERFIL_ACESSO', {
                     usuario_id: user.id,
                     access_id: select.dataset.accessId,
-                    novo_perfil_id: select.value
+                    novo_papel: select.value
                 });
-                sgeToast('success', 'Perfil de acesso atualizado.');
+                const nota = select.closest('.access-row')?.querySelector('.papel-nota');
+                if (nota) nota.innerHTML = notaPapel(select.value, select.dataset.slug);
+                sgeToast('success', 'Nível de acesso atualizado.');
                 loadAuditLogs();
             }
-            catch (err) { sgeToast('error', 'Erro ao alterar perfil: ' + err.message); }
+            catch (err) {
+                sgeToast('error', 'Erro ao alterar o nível: ' + err.message);
+                openUserConfig(user);
+            }
         });
     });
 
@@ -832,16 +856,25 @@ async function openUserConfig(user) {
 
     const grantBtn = document.getElementById('btn-grant-access');
     if (grantBtn) {
+        const sysSelect = document.getElementById('grant-system-select');
+        const papelSelect = document.getElementById('grant-profile-select');
+        const atualizarNotaGrant = () => {
+            const slug = sysSelect.selectedOptions[0]?.dataset.slug || '';
+            document.getElementById('grant-papel-nota').innerHTML = notaPapel(papelSelect.value, slug);
+        };
+        sysSelect.addEventListener('change', atualizarNotaGrant);
+        papelSelect.addEventListener('change', atualizarNotaGrant);
+
         grantBtn.addEventListener('click', async () => {
-            const sistemaId = document.getElementById('grant-system-select').value;
-            const perfilId = document.getElementById('grant-profile-select').value;
+            const sistemaId = sysSelect.value;
+            const papel = papelSelect.value;
             if (!sistemaId) { sgeToast('warning', 'Selecione um sistema.'); return; }
             try {
-                await window.SGE_API.grantSystemAccess(user.id, sistemaId, perfilId);
+                await window.SGE_API.grantSystemAccess(user.id, sistemaId, papel);
                 await window.SGE_API.insertAuditLog('CONCEDER_ACESSO_SISTEMA', {
                     usuario_id: user.id,
                     sistema_id: sistemaId,
-                    perfil_id: perfilId
+                    papel
                 });
                 sgeToast('success', 'Acesso concedido com sucesso.');
                 loadAuditLogs();
