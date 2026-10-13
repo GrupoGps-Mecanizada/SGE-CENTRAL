@@ -1,5 +1,11 @@
 # Mudanças da SGE Central
 
+## Banco · 2026-10-13 · Régua única de acesso, etapa A
+Spec: `D:/SEGUNDO CEREBRO - IDE/2 - Projetos/SGE/Departamentos/9 - Programação/Régua única de acesso - especificação.md`
+- `public.v_sso_acesso` passa a ler `acesso_permissoes` (fonte única) e traduz o nível para o nome antigo (SUPER/ADM/GESTAO/VISAO/SUPERVISOR). Mesmas colunas e tipos.
+- Aplicado e conferido: os 30 acessos antigos ficaram iguais (0 diferenças); entraram os 8 acessos que só existiam na tabela nova (SST, Monitoramento, Mapeamento). Leitura como anônimo conferida.
+- SQL: `supabase/migrations/20261013_regua_unica_visao_tradutora.sql`. Volta ensaiada: `supabase/voltar/20261013_voltar_visao_tradutora.sql`.
+
 ## v2.3.0 · 2026-10-09 · Login único e "Mostrar no portal"
 - **Login único:** quem já entrou no SGE (portal ou outro sistema, mesma sessão) não digita a senha de novo: a página de login confere cadastro e acesso e segue direto para o sistema. Senha provisória continua obrigando a trocar.
 - Tela de Sistemas: caixinha **Mostrar no portal** (desmarcada: o sistema some do portal e da grade da Barra Universal, mas continua funcionando).
