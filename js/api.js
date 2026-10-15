@@ -150,21 +150,10 @@ async function fetchAuditLogs() {
 
 // ==================== RBAC: Permissões de Acesso ====================
 
-// Régua única (2026-10-13): acessos ficam em acesso_permissoes (papel + ativo).
-// A tabela antiga sge_central_usuario_sistema_acesso não é mais gravada por esta tela.
+// Régua única (2026-10-13): acessos ficam em gps_compartilhado.acesso_permissoes (papel + ativo).
+// O site só enxerga a public: lê e grava pela visão public.v_acesso_permissoes (mesmo RLS da tabela).
 function acessos() {
-    return db().schema('gps_compartilhado').from('acesso_permissoes');
-}
-
-async function fetchUserAccess(userId) {
-    const { data, error } = await acessos()
-        .select(`
-            id, usuario_id, sistema_id, papel, ativo,
-            sistema:sge_central_sistemas!acesso_permissoes_sistema_id_fkey(id, nome, slug, is_active)
-        `)
-        .eq('usuario_id', userId);
-    if (error) throw error;
-    return data || [];
+    return db().from('v_acesso_permissoes');
 }
 
 // Tela "Usuários e acessos": todos os acessos e setores de uma vez (o admin da Central lê tudo pelo RLS).
@@ -555,7 +544,6 @@ window.SGE_API = {
     fetchAllSystems,
     fetchAllProfiles,
     fetchAuditLogs,
-    fetchUserAccess,
     fetchAllAccess,
     fetchAllUserSectors,
     setAccessLevel,

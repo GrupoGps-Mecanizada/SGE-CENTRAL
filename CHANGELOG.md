@@ -1,5 +1,10 @@
 # Mudanças da SGE Central
 
+## v2.4.1 · 2026-10-15 · Correção: "Não consegui carregar os usuários"
+- O site recebia erro 406 ao ler os níveis direto em `gps_compartilhado` (área não aberta para o site). Agora lê e grava pela visão `public.v_acesso_permissoes` (mesmas regras de segurança da tabela).
+- Banco: `supabase/migrations/20261015_visao_acesso_permissoes.sql` (rodar ANTES de publicar o código).
+- Saiu `fetchUserAccess` (só a tela antiga usava).
+
 ## v2.4.0 · 2026-10-15 · Tela "Usuários e acessos" (modelo do SST)
 - A antiga "Gestão de Identidade" + "Configuração de Usuário" saiu. No lugar: **cartões dos 6 níveis** (quantas pessoas em cada; clicar filtra), **lista de pessoas** (setor, quantos sistemas, Liberado/Bloqueado) com busca sem acento por nome, e-mail ou setor.
 - Clicar numa pessoa abre a **gaveta lateral**: todos os sistemas, cada um com "Sem acesso" ou um dos 6 níveis (vale na hora, fica no histórico); setores; Redefinir senha; Bloquear em todos os sistemas. Seu próprio acesso à Central continua travado.
