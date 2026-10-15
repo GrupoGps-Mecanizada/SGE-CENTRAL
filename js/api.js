@@ -167,6 +167,25 @@ async function fetchUserAccess(userId) {
     return data || [];
 }
 
+// Tela "Usuários e acessos": todos os acessos e setores de uma vez (o admin da Central lê tudo pelo RLS).
+async function fetchAllAccess() {
+    const { data, error } = await acessos().select('id, usuario_id, sistema_id, papel, ativo');
+    if (error) throw error;
+    return data || [];
+}
+
+async function fetchAllUserSectors() {
+    const { data, error } = await db().from('sge_central_usuario_setores').select('usuario_id, setor_id');
+    if (error) throw error;
+    return data || [];
+}
+
+// Escolher um nível também reativa um acesso que estava desligado.
+async function setAccessLevel(accessId, papel) {
+    const { error } = await acessos().update({ papel, ativo: true }).eq('id', accessId);
+    if (error) throw error;
+}
+
 async function getMeuId() {
     try {
         const { data } = await db().auth.getUser();
@@ -537,6 +556,9 @@ window.SGE_API = {
     fetchAllProfiles,
     fetchAuditLogs,
     fetchUserAccess,
+    fetchAllAccess,
+    fetchAllUserSectors,
+    setAccessLevel,
     getMeuId,
     fetchUserSectors,
     grantSystemAccess,

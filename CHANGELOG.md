@@ -1,5 +1,12 @@
 # Mudanças da SGE Central
 
+## v2.4.0 · 2026-10-15 · Tela "Usuários e acessos" (modelo do SST)
+- A antiga "Gestão de Identidade" + "Configuração de Usuário" saiu. No lugar: **cartões dos 6 níveis** (quantas pessoas em cada; clicar filtra), **lista de pessoas** (setor, quantos sistemas, Liberado/Bloqueado) com busca sem acento por nome, e-mail ou setor.
+- Clicar numa pessoa abre a **gaveta lateral**: todos os sistemas, cada um com "Sem acesso" ou um dos 6 níveis (vale na hora, fica no histórico); setores; Redefinir senha; Bloquear em todos os sistemas. Seu próprio acesso à Central continua travado.
+- "Sem acesso" desliga o acesso (a linha fica guardada); escolher um nível de novo religa.
+- Mesmo banco (`gps_compartilhado.acesso_permissoes`): **nenhum SQL novo**.
+- Arquivos: `js/tela-acessos.js`, `js/pessoas.js` (regras, 5 testes), `css/acessos.css`; teste visual com dados falsos em `testes/navegador/tela-acessos.html`.
+
 ## Banco · 2026-10-13 · Régua única de acesso, etapa A
 Spec: `D:/SEGUNDO CEREBRO - IDE/2 - Projetos/SGE/Departamentos/9 - Programação/Régua única de acesso - especificação.md`
 - `public.v_sso_acesso` passa a ler `acesso_permissoes` (fonte única) e traduz o nível para o nome antigo (SUPER/ADM/GESTAO/VISAO/SUPERVISOR). Mesmas colunas e tipos.
