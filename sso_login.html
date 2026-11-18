@@ -4,236 +4,195 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-    <title>SGE — Autenticacao Centralizada</title>
+    <title>SGE · Entrar</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <script>
+        // Tema guardado (mesma chave do portal e dos sistemas: sge_tema). Aplica antes de desenhar, sem piscar.
+        try { if (localStorage.getItem('sge_tema') === 'escuro') document.documentElement.setAttribute('data-tema', 'escuro'); } catch (_) {}
+    </script>
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        /* Tela de login aprovada pelo dono (Portfólio 15, login escolhido, 16-17/11/2026): sem cartão, logo "Grupo GPS"
+           grande à esquerda, campos com linha à direita, partículas de luz subindo e sol/lua. Escuro = "Azul profundo". */
+        :root { --bg: #ffffff; --txt: #16213a; --txt2: #5d6b86; --line: #dfe5f0; --azul: #2f5fb3; --azulT: #ffffff; --luz: 74,134,232;
+            --lg1: #1b3a6b; --lg3: #9cc3fb; --sg: #1B3A6B; --pc: #4a86e8; --pc2: #7aa7f0; --campo: transparent; }
+        :root[data-tema="escuro"] { --bg: #0b1730; --txt: #ffffff; --txt2: #9fb4dc; --line: rgba(255,255,255,.18); --azul: #7fb0ff; --azulT: #0b1730; --luz: 90,150,255;
+            --lg1: #ffffff; --lg3: #7fb0ff; --sg: #ffffff; --pc: #9cc3ff; --pc2: #ffffff; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; }
+        body { background: var(--bg); color: var(--txt); font-family: "IBM Plex Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+            display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; transition: background .5s, color .5s; }
+        button { font: inherit; color: inherit; cursor: pointer; }
 
-        body {
-            background: radial-gradient(ellipse at 50% 30%, #f1f5f9 0%, #e8edf5 60%, #dde4ef 100%);
-            display: flex; height: 100vh; align-items: center; justify-content: center;
-            position: relative; overflow: hidden;
-        }
+        /* Partículas de luz subindo + luz azul vindo de baixo */
+        .fundo { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+        .fundo::before { content: ""; position: absolute; left: -10%; right: -10%; bottom: -35%; height: 70%; border-radius: 50%;
+            background: radial-gradient(50% 50% at 50% 50%, rgba(var(--luz), .30), transparent 70%); }
+        .pa { position: absolute; bottom: 0; border-radius: 50%; background: var(--pc); opacity: 0; animation: sobePa linear infinite; will-change: transform, opacity; }
+        .pa:nth-child(3n) { background: var(--pc2); }
+        @keyframes sobePa { 0% { transform: translate3d(0, 10px, 0); opacity: 0; } 12% { opacity: .8; } 75% { opacity: .5; } 100% { transform: translate3d(0, -105vh, 0); opacity: 0; } }
 
-        #bg-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; opacity: 0.5; }
-        #vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 40%, transparent 45%, rgba(180,192,210,0.18) 100%); pointer-events: none; z-index: 1; }
+        /* Logo "Grupo GPS" com brilho passando e o "sge" oficial embaixo à direita */
+        .marca { display: inline-flex; flex-direction: column; align-items: flex-end; user-select: none; }
+        .marca .gg { font-family: "Plus Jakarta Sans", sans-serif; font-size: 52px; font-weight: 700; letter-spacing: -.025em; line-height: 1;
+            background: linear-gradient(100deg, var(--lg1) 0%, var(--azul) 38%, var(--lg3) 50%, var(--azul) 62%, var(--lg1) 100%); background-size: 250% 100%;
+            -webkit-background-clip: text; background-clip: text; color: transparent; animation: brilhaLogo 6s ease-in-out infinite; }
+        @keyframes brilhaLogo { 0% { background-position: 100% 0; } 45%, 100% { background-position: 0% 0; } }
+        .marca svg.sge { width: 70px; height: auto; margin: 4px -4px 0 0; fill: var(--sg); transition: fill .5s; }
 
-        .login-box {
-            background: #ffffff; border: 1px solid rgba(10,47,168,0.12); border-radius: 16px;
-            width: 100%; max-width: 400px;
-            box-shadow: 0 4px 18px rgba(10,47,168,0.07), 0 1px 4px rgba(0,0,0,0.04);
-            display: flex; flex-direction: column; overflow: hidden;
-            position: relative; z-index: 10; margin: 0 16px;
-            animation: cardIn 0.4s cubic-bezier(0.16,1,0.3,1) forwards;
-        }
+        .wrap { position: relative; z-index: 2; display: grid; grid-template-columns: 1fr 1fr; gap: 70px; align-items: center; width: 100%; max-width: 820px; padding: 0 30px; }
+        .lado small { display: block; max-width: 320px; margin-top: 18px; color: var(--txt2); font-size: 14px; line-height: 1.5; }
+        .lado .entrando { display: block; margin-top: 20px; font: 500 10.5px "IBM Plex Mono", monospace; letter-spacing: .18em; text-transform: uppercase; color: var(--txt2); }
+        .lado .entrando b { font-weight: 500; color: var(--txt); }
+        #access-sector-name { display: none; }
 
-        @keyframes cardIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        /* Formulário: campos com linha e rótulo que sobe */
+        .form { width: 340px; max-width: 100%; }
+        .cp { position: relative; margin-bottom: 14px; }
+        .cp input, .cp textarea { width: 100%; height: 50px; border: 0; border-bottom: 1.5px solid var(--line); border-radius: 0; background: none; color: var(--txt);
+            padding: 18px 0 6px; font: 15px "IBM Plex Sans", sans-serif; outline: none; transition: border-color .25s; }
+        .cp textarea { height: 80px; resize: none; padding-top: 22px; }
+        .cp label { position: absolute; left: 0; top: 15px; font-size: 14px; color: var(--txt2); pointer-events: none; transition: all .2s; }
+        .cp input:focus, .cp textarea:focus { border-color: var(--azul); }
+        .cp input:focus + label, .cp input:not(:placeholder-shown) + label, .cp textarea:focus + label, .cp textarea:not(:placeholder-shown) + label { top: 4px; font-size: 11px; letter-spacing: .04em; }
+        .cp .olho { position: absolute; right: 0; top: 14px; border: 0; background: none; color: var(--txt2); font-size: 12px; padding: 4px 6px; border-radius: 6px; }
+        .cp .olho:hover { color: var(--azul); }
+        .lin { display: flex; justify-content: flex-end; margin: 2px 0 18px; }
+        .lk { border: 0; background: none; color: var(--azul); font-size: 13px; padding: 0; position: relative; }
+        .lk::after { content: ""; position: absolute; left: 50%; right: 50%; bottom: -2px; height: 1.5px; background: var(--azul); transition: left .3s, right .3s; }
+        .lk:hover::after { left: 0; right: 0; }
+        .dica { display: none; margin: -8px 0 16px; padding: 10px 12px; border-radius: 10px; background: rgba(var(--luz), .10); color: var(--txt2); font-size: 13px; line-height: 1.5; }
+        .dica.show { display: block; }
 
-        .brand-block {
-            padding: 28px 28px 20px; display: flex; flex-direction: column; align-items: center; text-align: center;
-            border-bottom: 1px solid rgba(226,232,240,0.7); background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
-        }
-        .brand-label { font-size: 11px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px; }
-        .brand-name { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; color: #0a2fa8; line-height: 1.15; }
-        .brand-divider { width: 32px; height: 2px; background: #0a2fa8; border-radius: 2px; opacity: 0.22; margin: 10px 0 12px; }
-        .brand-sub { font-size: 11px; font-weight: 700; color: #64748b; letter-spacing: 0.06em; text-transform: uppercase; }
-
-        .system-row {
-            padding: 13px 20px; background: #f8fafc; border-bottom: 1px solid rgba(226,232,240,0.7);
-            display: flex; align-items: center; gap: 12px;
-        }
-        .system-icon {
-            width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
-            color: #ffffff; flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.12);
-            background: linear-gradient(135deg, #1a56a0 0%, #2563eb 100%); transition: background 0.3s;
-        }
-        .system-icon svg { width: 16px; height: 16px; }
-        .system-info { display: flex; flex-direction: column; gap: 1px; flex: 1; }
-        .system-name { font-size: 14px; font-weight: 700; color: #334155; letter-spacing: 0.02em; }
-        .system-sector { font-size: 13px; font-weight: 600; color: #1e293b; display: flex; align-items: center; gap: 5px; }
-
-        .form-area { padding: 22px 24px 26px; display: flex; flex-direction: column; background: #ffffff; }
-        .input-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-        .input-group:last-of-type { margin-bottom: 0; }
-        .input-group label { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #64748b; }
-        .input-group input {
-            height: 44px; background: #f7f9fc; border: 1px solid #d1d9e6; border-radius: 8px;
-            padding: 0 14px; font-size: 14px; color: #1e293b; font-family: 'Inter', sans-serif;
-            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s; width: 100%;
-        }
-        .input-group input::placeholder { color: #cbd5e1; font-size: 13px; }
-        .input-group input:focus { outline: none; border-color: #0a2fa8; background: #ffffff; box-shadow: 0 0 0 3px rgba(10,47,168,0.08); }
-
-        .btn-submit {
-            width: 100%; height: 46px; background: #0f3868; color: #ffffff; border: none; border-radius: 8px;
-            font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-top: 20px;
-            font-family: 'Inter', sans-serif; letter-spacing: 0.02em; box-shadow: 0 2px 8px rgba(15,56,104,0.18);
-        }
-        .btn-submit:hover { background: #0a2fa8; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(10,47,168,0.22); }
-        .btn-submit:active { transform: translateY(1px); box-shadow: 0 1px 4px rgba(15,56,104,0.15); }
-        .btn-submit:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
-
-        #error-msg { color: #ef4444; font-size: 12px; margin-top: 12px; min-height: 18px; font-weight: 500; text-align: center; }
-
-        /* Footer links */
-        .form-footer { display: flex; justify-content: center; margin-top: 16px; gap: 6px; }
-        .form-footer a {
-            font-size: 11px; color: #64748b; text-decoration: none; font-weight: 600;
-            transition: color 0.15s; cursor: pointer;
-        }
-        .form-footer a:hover { color: #0a2fa8; }
-
-        .login-footer {
-            position: absolute; bottom: 20px; left: 0; right: 0; text-align: center;
-            font-size: 10px; color: #94a3b8; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
-            pointer-events: none; z-index: 10;
-        }
-
-        .btn-spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #ffffff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+        .btn-submit, .btn-request { width: 100%; height: 50px; border: 0; border-radius: 12px; background: var(--azul); color: var(--azulT); font-weight: 600; font-size: 15px;
+            position: relative; overflow: hidden; transition: filter .2s, transform .2s; }
+        .btn-submit:hover, .btn-request:hover { filter: brightness(1.08); }
+        .btn-submit:active { transform: scale(.99); }
+        .btn-submit::after { content: ""; position: absolute; top: 0; bottom: 0; left: -40%; width: 30%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); transform: skewX(-20deg); transition: left .7s; }
+        .btn-submit:hover::after { left: 120%; }
+        .btn-submit:disabled, .btn-request:disabled { opacity: .65; cursor: not-allowed; }
+        .btn-spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.35); border-top-color: var(--azulT); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Access Request form (inline) */
-        .access-request-form {
-            display: none; padding: 16px 24px 20px; border-top: 1px solid rgba(226,232,240,0.7);
-            background: #f8fafc; animation: cardIn 0.3s ease;
-        }
-        .access-request-form.show { display: block; }
-        .access-request-form h4 { font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 12px; }
-        .access-request-form textarea {
-            width: 100%; padding: 10px 12px; border: 1px solid #d1d9e6; border-radius: 8px;
-            font-size: 13px; font-family: 'Inter', sans-serif; resize: vertical; min-height: 60px;
-            background: #fff; color: #1e293b; transition: border-color 0.2s;
-        }
-        .access-request-form textarea:focus { outline: none; border-color: #0a2fa8; }
-        .btn-request {
-            width: 100%; height: 40px; background: #7c3aed; color: #fff; border: none; border-radius: 8px;
-            font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 10px; transition: all 0.2s;
-        }
-        .btn-request:hover { background: #6d28d9; }
-        .btn-request:disabled { opacity: 0.65; cursor: not-allowed; }
-
-        .success-msg {
-            display: none; padding: 12px 16px; margin: 12px 24px; border-radius: 8px;
-            background: rgba(5,150,105,0.08); border: 1px solid rgba(5,150,105,0.2);
-            color: #059669; font-size: 12px; font-weight: 600; text-align: center;
-        }
+        #error-msg { margin-top: 12px; min-height: 18px; color: #e5484d; font-size: 13px; font-weight: 500; text-align: center; }
+        .form-footer { margin-top: 14px; font-size: 13px; color: var(--txt2); text-align: center; }
+        .form-footer a { color: var(--azul); cursor: pointer; text-decoration: none; }
+        .form-footer a:hover { text-decoration: underline; }
+        .success-msg { display: none; margin-top: 14px; padding: 10px 12px; border-radius: 10px; background: rgba(48,164,108,.14); color: #30a46c; font-size: 13px; text-align: center; }
         .success-msg.show { display: block; }
+        .access-request-form { display: none; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); animation: entra .45s cubic-bezier(.25,.9,.3,1); }
+        .access-request-form.show { display: block; }
+        .access-request-form h4 { font-family: "Plus Jakarta Sans", sans-serif; font-size: 16px; margin-bottom: 4px; }
+        .access-request-form p { color: var(--txt2); font-size: 13px; margin-bottom: 8px; }
+        @keyframes entra { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
-        /* Maintenance overlay */
-        .maint-overlay {
-            display: none; position: fixed; inset: 0; z-index: 99999;
-            background: radial-gradient(ellipse at 50% 30%, #fffbeb, #fef3c7 60%, #fde68a);
-            align-items: center; justify-content: center; font-family: 'Inter', sans-serif;
-        }
+        /* Sol e lua */
+        .tema { position: fixed; right: 18px; top: 16px; z-index: 5; width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: var(--campo); color: var(--txt2); }
+        .tema:hover { color: var(--azul); border-color: var(--azul); }
+        .tema svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; transition: transform .5s cubic-bezier(.25,.9,.3,1); }
+        .tema:hover svg { transform: rotate(25deg); }
+
+        /* Manutenção */
+        .maint-overlay { display: none; position: fixed; inset: 0; z-index: 99999; background: var(--bg); align-items: center; justify-content: center; }
         .maint-overlay.show { display: flex; }
-        .maint-card {
-            background: #fff; border: 1px solid rgba(217,119,6,.15); border-radius: 16px;
-            padding: 40px; max-width: 460px; width: 90%; text-align: center;
-            box-shadow: 0 4px 18px rgba(217,119,6,.07);
-        }
+        .maint-card { max-width: 460px; width: 90%; text-align: center; }
+        .maint-card h2 { font-family: "Plus Jakarta Sans", sans-serif; font-size: 24px; margin: 14px 0 8px; }
+        .maint-card p { color: var(--txt2); line-height: 1.7; margin-bottom: 18px; }
+        #maint-eta { display: none; margin-bottom: 20px; padding: 8px 16px; border-radius: 10px; background: rgba(240,138,36,.12); color: #b4530a; font-size: 13px; }
+        .maint-card button { padding: 11px 24px; border: 0; border-radius: 12px; background: var(--azul); color: var(--azulT); font-weight: 600; }
 
-        @media (max-width: 420px) {
-            .brand-block { padding: 22px 20px 16px; }
-            .form-area { padding: 18px 18px 22px; }
-            .brand-name { font-size: 24px; }
+        @media (max-width: 760px) {
+            body { align-items: flex-start; overflow-y: auto; }
+            .wrap { grid-template-columns: 1fr; gap: 28px; padding: 70px 22px 40px; }
+            .marca .gg { font-size: 40px; }
+            .marca svg.sge { width: 56px; }
+            .lado small { display: none; }
         }
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
     </style>
 </head>
 
 <body>
-    <canvas id="bg-canvas"></canvas>
-    <div id="vignette"></div>
+    <div class="fundo" id="fundo" aria-hidden="true"></div>
+    <button class="tema" id="btn-tema" type="button" title="Tema claro / escuro" aria-label="Tema claro / escuro"></button>
 
-    <!-- Maintenance overlay (shown if system is in maintenance) -->
+    <!-- Manutenção (aparece se o sistema estiver em manutenção) -->
     <div class="maint-overlay" id="maint-overlay">
         <div class="maint-card">
-            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px">
+            <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#f08a24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
             </svg>
-            <h2 style="font-size:22px;font-weight:800;color:#d97706;margin-bottom:8px">Sistema em Manutencao</h2>
-            <p id="maint-message" style="font-size:14px;color:#5a6676;line-height:1.7;margin-bottom:20px"></p>
-            <div id="maint-eta" style="display:none;padding:8px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:13px;color:#92400e;margin-bottom:20px"></div>
-            <button onclick="window.location.reload()" style="padding:10px 24px;background:#d97706;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600">Tentar Novamente</button>
+            <h2>Sistema em manutenção</h2>
+            <p id="maint-message"></p>
+            <div id="maint-eta"></div>
+            <div><button onclick="window.location.reload()">Tentar de novo</button></div>
         </div>
     </div>
 
-    <div class="login-box">
-        <div class="brand-block">
-            <span class="brand-name">GRUPO GPS</span>
+    <div class="wrap">
+        <div class="lado">
+            <div class="marca" role="img" aria-label="Grupo GPS · SGE"><span class="gg">Grupo GPS</span><svg class="sge" focusable="false" aria-hidden="true" viewBox="4 92 272 104" aria-label="SGE"><g transform="translate(9.00, 95.50)"><path fill-rule="evenodd" d="M 181.00 53.00 L 181.00 54.88 L 182.00 55.00 L 182.00 57.88 L 183.00 58.00 L 183.00 60.88 L 184.00 61.00 L 184.00 62.88 L 185.00 63.00 L 185.00 64.88 L 186.00 65.00 L 186.00 66.88 L 187.00 67.00 L 187.00 67.88 L 188.00 68.00 L 188.00 69.88 L 189.00 70.00 L 189.00 70.88 L 190.00 71.00 L 190.00 71.88 L 191.00 72.00 L 191.00 72.88 L 192.00 73.00 L 192.00 73.88 L 193.00 74.00 L 193.00 74.88 L 194.00 75.00 L 194.00 75.88 L 195.00 76.00 L 195.00 76.88 L 197.00 77.00 L 197.00 77.88 L 198.00 78.00 L 198.00 78.88 L 200.00 79.00 L 200.00 79.88 L 202.00 80.00 L 202.00 80.88 L 203.00 81.00 L 203.00 81.88 L 206.00 82.00 L 206.00 82.88 L 209.00 83.00 L 209.00 83.88 L 213.00 84.00 L 213.00 84.88 L 218.00 85.00 L 218.00 85.88 L 255.88 85.88 L 256.00 84.88 L 257.88 84.88 L 258.00 83.88 L 258.88 83.88 L 258.88 78.00 L 257.88 77.88 L 257.88 77.00 L 255.88 76.88 L 255.88 76.00 L 213.88 75.88 L 213.88 75.00 L 210.88 74.88 L 210.88 74.00 L 208.88 73.88 L 208.88 73.00 L 206.88 72.88 L 206.88 72.00 L 204.88 71.88 L 204.88 71.00 L 202.88 70.88 L 202.88 70.00 L 201.88 69.88 L 201.88 69.00 L 199.88 68.88 L 199.88 68.00 L 198.88 67.88 L 198.88 67.00 L 197.88 66.88 L 197.88 66.00 L 196.88 65.88 L 196.88 65.00 L 195.88 64.88 L 195.88 63.00 L 194.88 62.88 L 194.88 62.00 L 193.88 61.88 L 193.88 60.00 L 192.88 59.88 L 192.88 58.00 L 191.88 57.88 L 191.88 55.00 L 190.88 54.88 L 190.88 53.00 Z M 165.88 18.00 L 164.88 17.88 L 164.88 17.00 L 163.88 16.88 L 163.88 16.00 L 162.88 15.88 L 162.88 15.00 L 161.88 14.88 L 161.88 14.00 L 160.88 13.88 L 160.88 13.00 L 159.88 12.88 L 159.88 12.00 L 158.88 11.88 L 158.88 11.00 L 156.88 10.88 L 156.88 10.00 L 154.88 9.88 L 154.88 9.00 L 152.88 8.88 L 152.88 8.00 L 150.88 7.88 L 150.88 7.00 L 147.88 6.88 L 147.88 6.00 L 143.88 5.88 L 143.88 5.00 L 126.00 5.00 L 125.88 6.00 L 122.00 6.00 L 121.88 7.00 L 120.00 7.00 L 119.88 8.00 L 117.00 8.00 L 116.88 9.00 L 115.00 9.00 L 114.88 10.00 L 113.00 10.00 L 112.88 11.00 L 112.00 11.00 L 111.88 12.00 L 110.00 12.00 L 109.88 13.00 L 109.00 13.00 L 108.88 14.00 L 108.00 14.00 L 107.88 15.00 L 107.00 15.00 L 106.88 16.00 L 106.00 16.00 L 105.88 17.00 L 105.00 17.00 L 104.88 18.00 L 104.00 18.00 L 103.88 19.00 L 103.00 19.00 L 102.88 20.00 L 102.00 20.00 L 101.88 22.00 L 101.00 22.00 L 100.88 23.00 L 100.00 23.00 L 99.88 25.00 L 99.00 25.00 L 98.88 26.00 L 98.00 26.00 L 97.88 28.00 L 97.00 28.00 L 96.88 31.00 L 96.00 31.00 L 95.88 34.00 L 95.00 34.00 L 94.88 37.00 L 94.00 37.00 L 93.88 41.00 L 93.00 41.00 L 92.88 44.00 L 92.00 44.00 L 91.88 47.00 L 91.00 47.00 L 90.88 50.00 L 90.00 50.00 L 89.88 52.00 L 89.00 52.00 L 88.88 55.00 L 88.00 55.00 L 87.88 56.00 L 87.00 56.00 L 86.88 58.00 L 86.00 58.00 L 85.88 60.00 L 85.00 60.00 L 84.88 61.00 L 84.00 61.00 L 83.88 63.00 L 83.00 63.00 L 82.88 64.00 L 82.00 64.00 L 81.88 65.00 L 81.00 65.00 L 80.88 66.00 L 80.00 66.00 L 79.88 67.00 L 79.00 67.00 L 78.88 68.00 L 78.00 68.00 L 77.88 69.00 L 77.00 69.00 L 76.88 70.00 L 75.00 70.00 L 74.88 71.00 L 74.00 71.00 L 73.88 72.00 L 72.00 72.00 L 71.88 73.00 L 70.00 73.00 L 69.88 74.00 L 68.00 74.00 L 67.88 75.00 L 65.00 75.00 L 64.88 76.00 L 7.00 76.00 L 6.88 77.00 L 5.00 77.00 L 4.88 79.00 L 4.00 79.00 L 4.00 82.88 L 5.00 83.00 L 5.00 84.88 L 8.00 85.00 L 8.00 85.88 L 59.88 85.88 L 60.00 84.88 L 65.88 84.88 L 66.00 83.88 L 69.88 83.88 L 70.00 82.88 L 71.88 82.88 L 72.00 81.88 L 74.88 81.88 L 75.00 80.88 L 76.88 80.88 L 77.00 79.88 L 78.88 79.88 L 79.00 78.88 L 79.88 78.88 L 80.00 77.88 L 81.88 77.88 L 82.00 76.88 L 82.88 76.88 L 83.00 75.88 L 83.88 75.88 L 84.00 74.88 L 84.88 74.88 L 85.00 73.88 L 85.88 73.88 L 86.00 72.88 L 86.88 72.88 L 87.00 71.88 L 87.88 71.88 L 88.00 70.88 L 88.88 70.88 L 89.00 69.88 L 89.88 69.88 L 90.00 68.88 L 90.88 68.88 L 91.00 66.88 L 91.88 66.88 L 92.00 65.88 L 92.88 65.88 L 93.00 64.88 L 93.88 64.88 L 94.00 62.88 L 94.88 62.88 L 95.00 60.88 L 95.88 60.88 L 96.00 58.88 L 96.88 58.88 L 97.00 56.88 L 97.88 56.88 L 98.00 54.88 L 98.88 54.88 L 99.00 51.88 L 99.88 51.88 L 100.00 48.88 L 100.88 48.88 L 101.00 46.88 L 101.88 46.88 L 102.00 42.88 L 102.88 42.88 L 103.00 39.88 L 103.88 39.88 L 104.00 35.88 L 104.88 35.88 L 105.00 32.88 L 105.88 32.88 L 106.00 30.88 L 106.88 30.88 L 107.00 28.88 L 107.88 28.88 L 108.00 27.88 L 108.88 27.88 L 109.00 25.88 L 109.88 25.88 L 110.00 24.88 L 110.88 24.88 L 111.00 23.88 L 111.88 23.88 L 112.00 22.88 L 112.88 22.88 L 113.00 21.88 L 113.88 21.88 L 114.00 20.88 L 114.88 20.88 L 115.00 19.88 L 116.88 19.88 L 117.00 18.88 L 117.88 18.88 L 118.00 17.88 L 119.88 17.88 L 120.00 16.88 L 121.88 16.88 L 122.00 15.88 L 124.88 15.88 L 125.00 14.88 L 128.88 14.88 L 129.00 13.88 L 142.00 14.00 L 142.00 14.88 L 146.00 15.00 L 146.00 15.88 L 148.00 16.00 L 148.00 16.88 L 150.00 17.00 L 150.00 17.88 L 152.00 18.00 L 152.00 18.88 L 154.00 19.00 L 154.00 19.88 L 155.00 20.00 L 155.00 20.88 L 156.00 21.00 L 156.00 21.88 L 157.00 22.00 L 157.00 22.88 L 159.00 23.00 L 159.00 23.88 L 160.00 24.00 L 160.00 24.88 L 163.88 24.88 L 164.00 23.88 L 164.88 23.88 L 165.00 22.88 L 165.88 22.88 Z M 258.88 21.00 L 257.88 20.88 L 257.88 18.00 L 256.88 17.88 L 256.88 16.00 L 255.88 15.88 L 255.88 15.00 L 254.88 14.88 L 254.88 13.00 L 253.88 12.88 L 253.88 12.00 L 252.88 11.88 L 252.88 11.00 L 251.88 10.88 L 251.88 10.00 L 250.88 9.88 L 250.88 9.00 L 249.88 8.88 L 249.88 8.00 L 247.88 7.88 L 247.88 7.00 L 245.88 6.88 L 245.88 6.00 L 242.88 5.88 L 242.88 5.00 L 231.88 4.88 L 231.88 4.00 L 223.00 4.00 L 222.88 5.00 L 213.00 5.00 L 212.88 6.00 L 209.00 6.00 L 208.88 7.00 L 206.00 7.00 L 205.88 8.00 L 204.00 8.00 L 203.88 9.00 L 202.00 9.00 L 201.88 10.00 L 200.00 10.00 L 199.88 11.00 L 199.00 11.00 L 198.88 12.00 L 197.00 12.00 L 196.88 13.00 L 196.00 13.00 L 195.88 14.00 L 195.00 14.00 L 194.88 15.00 L 193.00 15.00 L 192.88 16.00 L 192.00 16.00 L 191.88 17.00 L 191.00 17.00 L 190.88 19.00 L 190.00 19.00 L 189.88 20.00 L 189.00 20.00 L 188.88 21.00 L 188.00 21.00 L 187.88 23.00 L 187.00 23.00 L 186.88 24.00 L 186.00 24.00 L 185.88 26.00 L 185.00 26.00 L 184.88 28.00 L 184.00 28.00 L 183.88 29.00 L 183.00 29.00 L 182.88 32.00 L 182.00 32.00 L 181.88 36.00 L 181.00 36.00 L 181.00 36.88 L 190.88 36.88 L 191.00 34.88 L 191.88 34.88 L 192.00 32.88 L 192.88 32.88 L 193.00 29.88 L 193.88 29.88 L 194.00 28.88 L 194.88 28.88 L 195.00 26.88 L 195.88 26.88 L 196.00 25.88 L 196.88 25.88 L 197.00 24.88 L 197.88 24.88 L 198.00 23.88 L 198.88 23.88 L 199.00 22.88 L 199.88 22.88 L 200.00 21.88 L 200.88 21.88 L 201.00 20.88 L 201.88 20.88 L 202.00 19.88 L 202.88 19.88 L 203.00 18.88 L 204.88 18.88 L 205.00 17.88 L 206.88 17.88 L 207.00 16.88 L 208.88 16.88 L 209.00 15.88 L 211.88 15.88 L 212.00 14.88 L 214.88 14.88 L 215.00 13.88 L 241.00 14.00 L 241.00 14.88 L 243.00 15.00 L 243.00 15.88 L 245.00 16.00 L 245.00 16.88 L 246.00 17.00 L 246.00 17.88 L 247.00 18.00 L 247.00 19.88 L 248.00 20.00 L 248.00 20.88 L 249.00 21.00 L 249.00 23.88 L 250.00 24.00 L 249.88 31.00 L 249.00 31.00 L 248.88 33.00 L 248.00 33.00 L 247.88 35.00 L 247.00 35.00 L 246.88 36.00 L 246.00 36.00 L 245.88 37.00 L 245.00 37.00 L 244.88 38.00 L 244.00 38.00 L 243.88 39.00 L 242.00 39.00 L 241.88 40.00 L 135.00 40.00 L 134.88 41.00 L 132.00 41.00 L 131.88 43.00 L 131.00 43.00 L 131.00 46.88 L 132.00 47.00 L 132.00 48.88 L 134.00 49.00 L 134.00 49.88 L 166.00 50.00 L 165.88 54.00 L 165.00 54.00 L 164.88 57.00 L 164.00 57.00 L 163.88 59.00 L 163.00 59.00 L 162.88 61.00 L 162.00 61.00 L 161.88 63.00 L 161.00 63.00 L 160.88 64.00 L 160.00 64.00 L 159.88 65.00 L 159.00 65.00 L 158.88 66.00 L 158.00 66.00 L 157.88 67.00 L 157.00 67.00 L 156.88 68.00 L 156.00 68.00 L 155.88 69.00 L 155.00 69.00 L 154.88 70.00 L 154.00 70.00 L 153.88 71.00 L 152.00 71.00 L 151.88 72.00 L 150.00 72.00 L 149.88 73.00 L 148.00 73.00 L 147.88 74.00 L 146.00 74.00 L 145.88 75.00 L 143.00 75.00 L 142.88 76.00 L 127.88 75.88 L 127.88 75.00 L 123.88 74.88 L 123.88 74.00 L 121.88 73.88 L 121.88 73.00 L 119.88 72.88 L 119.88 72.00 L 117.88 71.88 L 117.88 71.00 L 116.88 70.88 L 116.88 70.00 L 114.88 69.88 L 114.88 69.00 L 113.88 68.88 L 113.88 68.00 L 112.88 67.88 L 112.88 67.00 L 111.88 66.88 L 111.88 66.00 L 110.88 65.88 L 110.88 65.00 L 109.88 64.88 L 109.88 64.00 L 108.88 63.88 L 108.88 62.00 L 107.88 61.88 L 107.88 61.00 L 106.88 60.88 L 106.88 59.00 L 105.88 58.88 L 105.88 57.00 L 104.88 56.88 L 104.88 54.00 L 103.88 53.88 L 103.88 51.00 L 103.00 51.00 L 102.88 54.00 L 102.00 54.00 L 101.88 56.00 L 101.00 56.00 L 100.88 58.00 L 100.00 58.00 L 99.88 60.00 L 99.00 60.00 L 98.88 62.00 L 98.00 62.00 L 98.00 63.88 L 99.00 64.00 L 99.00 64.88 L 100.00 65.00 L 100.00 66.88 L 101.00 67.00 L 101.00 67.88 L 102.00 68.00 L 102.00 69.88 L 103.00 70.00 L 103.00 70.88 L 104.00 71.00 L 104.00 71.88 L 105.00 72.00 L 105.00 72.88 L 106.00 73.00 L 106.00 73.88 L 107.00 74.00 L 107.00 74.88 L 108.00 75.00 L 108.00 75.88 L 109.00 76.00 L 109.00 76.88 L 110.00 77.00 L 110.00 77.88 L 112.00 78.00 L 112.00 78.88 L 113.00 79.00 L 113.00 79.88 L 115.00 80.00 L 115.00 80.88 L 117.00 81.00 L 117.00 81.88 L 120.00 82.00 L 120.00 82.88 L 122.00 83.00 L 122.00 83.88 L 126.00 84.00 L 126.00 84.88 L 131.00 85.00 L 131.00 85.88 L 138.88 85.88 L 139.00 84.88 L 144.88 84.88 L 145.00 83.88 L 147.88 83.88 L 148.00 82.88 L 150.88 82.88 L 151.00 81.88 L 152.88 81.88 L 153.00 80.88 L 154.88 80.88 L 155.00 79.88 L 156.88 79.88 L 157.00 78.88 L 158.88 78.88 L 159.00 77.88 L 159.88 77.88 L 160.00 76.88 L 160.88 76.88 L 161.00 75.88 L 161.88 75.88 L 162.00 74.88 L 163.88 74.88 L 164.00 73.88 L 164.88 73.88 L 165.00 71.88 L 165.88 71.88 L 166.00 70.88 L 166.88 70.88 L 167.00 69.88 L 167.88 69.88 L 168.00 68.88 L 168.88 68.88 L 169.00 66.88 L 169.88 66.88 L 170.00 65.88 L 170.88 65.88 L 171.00 63.88 L 171.88 63.88 L 172.00 61.88 L 172.88 61.88 L 173.00 59.88 L 173.88 59.88 L 174.00 56.88 L 174.88 56.88 L 175.00 52.88 L 175.88 52.88 L 176.00 49.88 L 239.88 49.88 L 240.00 48.88 L 243.88 48.88 L 244.00 47.88 L 246.88 47.88 L 247.00 46.88 L 248.88 46.88 L 249.00 45.88 L 249.88 45.88 L 250.00 44.88 L 250.88 44.88 L 251.00 43.88 L 251.88 43.88 L 252.00 42.88 L 252.88 42.88 L 253.00 41.88 L 253.88 41.88 L 254.00 40.88 L 254.88 40.88 L 255.00 39.88 L 255.88 39.88 L 256.00 37.88 L 256.88 37.88 L 257.00 35.88 L 257.88 35.88 L 258.00 32.88 L 258.88 32.88 Z M 116.88 4.00 L 116.00 4.00 L 115.88 5.00 L 113.88 4.88 L 113.88 4.00 L 113.00 4.00 L 112.88 5.00 L 20.00 5.00 L 19.88 6.00 L 17.00 6.00 L 16.88 7.00 L 15.00 7.00 L 14.88 8.00 L 13.00 8.00 L 12.88 9.00 L 12.00 9.00 L 11.88 10.00 L 11.00 10.00 L 10.88 11.00 L 10.00 11.00 L 9.88 12.00 L 9.00 12.00 L 8.88 13.00 L 8.00 13.00 L 7.88 15.00 L 7.00 15.00 L 6.88 17.00 L 6.00 17.00 L 5.88 19.00 L 5.00 19.00 L 4.88 22.00 L 4.00 22.00 L 4.00 31.88 L 5.00 32.00 L 5.00 35.88 L 6.00 36.00 L 6.00 37.88 L 7.00 38.00 L 7.00 39.88 L 8.00 40.00 L 8.00 40.88 L 9.00 41.00 L 9.00 41.88 L 10.00 42.00 L 10.00 42.88 L 11.00 43.00 L 11.00 43.88 L 12.00 44.00 L 12.00 44.88 L 13.00 45.00 L 13.00 45.88 L 14.00 46.00 L 14.00 46.88 L 16.00 47.00 L 16.00 47.88 L 19.00 48.00 L 19.00 48.88 L 23.00 49.00 L 23.00 49.88 L 65.00 50.00 L 65.00 50.88 L 67.00 51.00 L 67.00 51.88 L 69.00 52.00 L 69.00 52.88 L 70.00 53.00 L 70.00 53.88 L 71.00 54.00 L 71.00 54.88 L 72.00 55.00 L 72.00 56.88 L 73.00 57.00 L 73.00 59.88 L 74.00 60.00 L 73.88 66.00 L 73.00 66.00 L 73.00 67.88 L 73.88 67.88 L 74.00 66.88 L 75.88 66.88 L 76.00 65.88 L 76.88 65.88 L 77.00 64.88 L 77.88 64.88 L 78.00 63.88 L 78.88 63.88 L 79.00 62.88 L 79.88 62.88 L 80.00 60.88 L 80.88 60.88 L 81.00 59.88 L 81.88 59.88 L 81.88 54.00 L 80.88 53.88 L 80.88 52.00 L 79.88 51.88 L 79.88 50.00 L 78.88 49.88 L 78.88 49.00 L 77.88 48.88 L 77.88 48.00 L 76.88 47.88 L 76.88 47.00 L 75.88 46.88 L 75.88 46.00 L 74.88 45.88 L 74.88 45.00 L 73.88 44.88 L 73.88 44.00 L 71.88 43.88 L 71.88 43.00 L 70.88 42.88 L 70.88 42.00 L 67.88 41.88 L 67.88 41.00 L 62.88 40.88 L 62.88 40.00 L 28.00 40.00 L 27.88 41.00 L 25.88 40.88 L 25.88 40.00 L 20.88 39.88 L 20.88 39.00 L 19.88 38.88 L 19.88 38.00 L 17.88 37.88 L 17.88 37.00 L 16.88 36.88 L 16.88 36.00 L 15.88 35.88 L 15.88 34.00 L 14.88 33.88 L 14.88 33.00 L 13.88 32.88 L 13.88 30.00 L 12.88 29.88 L 13.00 23.88 L 13.88 23.88 L 14.00 20.88 L 14.88 20.88 L 15.00 19.88 L 15.88 19.88 L 16.00 17.88 L 16.88 17.88 L 17.00 16.88 L 17.88 16.88 L 18.00 15.88 L 19.88 15.88 L 20.00 14.88 L 21.88 14.88 L 22.00 13.88 L 103.88 13.88 L 104.00 12.88 L 104.88 12.88 L 105.00 11.88 L 106.88 11.88 L 107.00 10.88 L 107.88 10.88 L 108.00 9.88 L 108.88 9.88 L 109.00 8.88 L 110.88 8.88 L 111.00 7.88 L 112.88 7.88 L 113.00 6.88 L 113.88 6.88 L 114.00 5.88 L 116.88 5.88 Z"/></g></svg></div>
+            <small>Entre com o e-mail e a senha da empresa.</small>
+            <span class="entrando">Entrando em <b id="access-system-name">…</b></span>
+            <span id="access-sector-name"></span>
         </div>
 
-        <!-- Dynamic system row -->
-        <div class="system-row" style="flex-direction:column; align-items:flex-start; gap:6px;">
-            <div class="system-info" style="width:100%;">
-                <span class="system-name" id="access-system-name"><span style="font-weight:700;color:#1e293b;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;">SISTEMA:</span> Carregando...</span>
-                <span class="system-sector" id="access-sector-name"><span style="font-weight:700;color:#1e293b;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;">SETOR:</span> Identificando</span>
-            </div>
-        </div>
-
-        <div class="form-area">
+        <div class="form">
             <form id="sso-form">
-                <div class="input-group">
-                    <label>E-mail</label>
-                    <input type="email" id="email" required autocomplete="username" placeholder="seu.email@gps.com.br">
-                </div>
-                <div class="input-group">
-                    <label>Senha</label>
-                    <input type="password" id="password" required autocomplete="current-password" placeholder="••••••••">
-                </div>
+                <div class="cp"><input type="email" id="email" required autocomplete="username" placeholder=" "><label for="email">E-mail</label></div>
+                <div class="cp"><input type="password" id="password" required autocomplete="current-password" placeholder=" "><label for="password">Senha</label>
+                    <button type="button" class="olho" id="btn-olho">ver</button></div>
+                <div class="lin"><button type="button" class="lk" id="btn-primeiro">Primeiro acesso</button></div>
+                <p class="dica" id="dica-primeiro">Primeiro acesso: entre com o e-mail e a <b>senha provisória</b> que você recebeu. Logo em seguida o sistema pede para você criar a sua senha (mínimo 8 caracteres).</p>
                 <button type="submit" id="btn-submit" class="btn-submit">Entrar</button>
             </form>
-            <div id="error-msg"></div>
-            <div class="form-footer">
-                <a id="btn-request-access" title="Solicitar acesso ao sistema">Solicitar Acesso</a>
-            </div>
-        </div>
+            <div id="error-msg" role="alert"></div>
+            <div class="form-footer">Não tem acesso? <a id="btn-request-access" title="Solicitar acesso ao sistema">Solicitar acesso</a></div>
+            <div class="success-msg" id="success-msg" role="status"></div>
 
-        <!-- Success message (after access request) -->
-        <div class="success-msg" id="success-msg"></div>
-
-        <!-- Inline access request form -->
-        <div class="access-request-form" id="access-request-form">
-            <h4>Solicitar Acesso</h4>
-            <div class="input-group">
-                <label>Seu E-mail</label>
-                <input type="email" id="req-email" placeholder="seu.email@gps.com.br">
+            <div class="access-request-form" id="access-request-form">
+                <h4>Solicitar acesso</h4>
+                <p>O administrador recebe o pedido e libera os sistemas.</p>
+                <div class="cp"><input type="email" id="req-email" placeholder=" "><label for="req-email">Seu e-mail</label></div>
+                <div class="cp"><input type="text" id="req-nome" placeholder=" "><label for="req-nome">Seu nome completo</label></div>
+                <div class="cp"><textarea id="req-msg" placeholder=" "></textarea><label for="req-msg">Para que precisa do acesso</label></div>
+                <button type="button" id="btn-send-request" class="btn-request">Enviar pedido</button>
             </div>
-            <div class="input-group">
-                <label>Seu Nome</label>
-                <input type="text" id="req-nome" placeholder="Nome completo">
-            </div>
-            <div class="input-group" style="margin-bottom:0;">
-                <label>Justificativa</label>
-                <textarea id="req-msg" placeholder="Explique por que precisa de acesso a este sistema..."></textarea>
-            </div>
-            <button type="button" id="btn-send-request" class="btn-request">Enviar Solicitacao</button>
         </div>
     </div>
-
-    <div class="login-footer">SGE · Ecossistema Grupo GPS · Mecanizada</div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // ===== Particles =====
+        // ===== Visual: partículas, sol/lua, ver senha, primeiro acesso (sem tocar na lógica de login) =====
         (function () {
-            const canvas = document.getElementById('bg-canvas');
-            const ctx = canvas.getContext('2d');
-            let particles = [];
-            function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-            window.addEventListener('resize', resize); resize();
-            for (let i = 0; i < 60; i++) {
-                particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, r: Math.random() * 2 + 0.5, dx: (Math.random() - 0.5) * 0.4, dy: (Math.random() - 0.5) * 0.4, opacity: Math.random() * 0.3 + 0.1 });
+            const fundo = document.getElementById('fundo');
+            for (let i = 0; i < 26; i++) {
+                const p = document.createElement('i');
+                p.className = 'pa';
+                const s = (2 + Math.random() * 3).toFixed(1);
+                p.style.cssText = `left:${(Math.random() * 94 + 3).toFixed(1)}%;width:${s}px;height:${s}px;animation-duration:${(6 + Math.random() * 6).toFixed(1)}s;animation-delay:${(-Math.random() * 12).toFixed(1)}s`;
+                fundo.appendChild(p);
             }
-            function draw() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                particles.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fillStyle = `rgba(10,47,168,${p.opacity})`; ctx.fill(); p.x += p.dx; p.y += p.dy; if (p.x < 0 || p.x > canvas.width) p.dx *= -1; if (p.y < 0 || p.y > canvas.height) p.dy *= -1; });
-                for (let i = 0; i < particles.length; i++) { for (let j = i + 1; j < particles.length; j++) { const dx = particles[i].x - particles[j].x, dy = particles[i].y - particles[j].y; const dist = Math.sqrt(dx * dx + dy * dy); if (dist < 120) { ctx.beginPath(); ctx.moveTo(particles[i].x, particles[i].y); ctx.lineTo(particles[j].x, particles[j].y); ctx.strokeStyle = `rgba(10,47,168,${0.06 * (1 - dist / 120)})`; ctx.lineWidth = 0.5; ctx.stroke(); } } }
-                requestAnimationFrame(draw);
-            }
-            draw();
+            const SOL = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>';
+            const LUA = '<svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>';
+            const bt = document.getElementById('btn-tema');
+            const escuro = () => document.documentElement.getAttribute('data-tema') === 'escuro';
+            const pinta = () => { bt.innerHTML = escuro() ? SOL : LUA; };
+            bt.addEventListener('click', () => {
+                const novo = escuro() ? 'claro' : 'escuro';
+                document.documentElement.setAttribute('data-tema', novo);
+                try { localStorage.setItem('sge_tema', novo); } catch (_) {}
+                pinta();
+            });
+            pinta();
+            document.getElementById('btn-olho').addEventListener('click', (e) => {
+                const s = document.getElementById('password');
+                s.type = s.type === 'password' ? 'text' : 'password';
+                e.currentTarget.textContent = s.type === 'password' ? 'ver' : 'ocultar';
+            });
+            document.getElementById('btn-primeiro').addEventListener('click', () => document.getElementById('dica-primeiro').classList.toggle('show'));
         })();
 
         // ===== Icon Library =====
@@ -414,18 +373,18 @@
             const sysSector = fallback.sector;
 
             const sysNameEl = document.getElementById('access-system-name');
-            sysNameEl.innerHTML = `<span style="font-weight:700;color:#1e293b;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;">SISTEMA:</span> ${esc(sysName)}`;
+            sysNameEl.textContent = sysName;
             const sectorEl = document.getElementById('access-sector-name');
-            sectorEl.innerHTML = `<span style="font-weight:700;color:#1e293b;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;">SETOR:</span> ${esc(sysSector)}`;
+            sectorEl.textContent = sysSector;
             sectorEl.classList.remove('loading');
 
             // 2. Check maintenance mode
             const maint = await checkMaintenance(appSlug);
             if (maint) {
-                document.getElementById('maint-message').textContent = maint.mensagem || 'Sistema temporariamente indisponivel.';
+                document.getElementById('maint-message').textContent = maint.mensagem || 'Sistema temporariamente indisponível.';
                 if (maint.previsao_fim) {
                     const etaEl = document.getElementById('maint-eta');
-                    etaEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Previsao de retorno: <strong>${new Date(maint.previsao_fim).toLocaleString('pt-BR')}</strong>`;
+                    etaEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Previsão de retorno: <strong>${new Date(maint.previsao_fim).toLocaleString('pt-BR')}</strong>`;
                     etaEl.style.display = 'inline-block';
                 }
                 document.getElementById('maint-overlay').classList.add('show');
@@ -454,12 +413,12 @@
 
                 const ok = await submitAccessRequest(reqEmail, reqNome, reqMsg, appSlug, sysName);
                 btn.disabled = false;
-                btn.textContent = 'Enviar Solicitacao';
+                btn.textContent = 'Enviar pedido';
 
                 if (ok) {
                     reqFormEl.classList.remove('show');
                     const successEl = document.getElementById('success-msg');
-                    successEl.textContent = 'Solicitacao enviada com sucesso! O administrador sera notificado.';
+                    successEl.textContent = 'Pedido enviado. O administrador vai receber e liberar o acesso.';
                     successEl.classList.add('show');
                     setTimeout(() => successEl.classList.remove('show'), 8000);
                 }
@@ -479,22 +438,22 @@
 
                 // Check user globally active
                 const userResp = await fetch(`${SUPA_URL}/rest/v1/v_sso_usuarios?id=eq.${user.id}&select=id,is_active`, { headers: rbacHeaders });
-                if (ehPortal && !userResp.ok) throw new Error('Nao foi possivel conferir seu cadastro. Tente de novo.');
+                if (ehPortal && !userResp.ok) throw new Error('Não foi possível conferir seu cadastro. Tente de novo.');
                 if (userResp.ok) {
                     const users = await userResp.json();
-                    if (users.length === 0) throw new Error('Seu cadastro nao foi encontrado no sistema.');
+                    if (users.length === 0) throw new Error('Seu cadastro não foi encontrado no sistema.');
                     if (!users[0].is_active) throw new Error('Sua conta foi bloqueada pelo administrador.');
                 }
 
                 if (!ehPortal) {
                     // Check system active + user has explicit access grant
-                    if (!dbSystem || !dbSystem.id) throw new Error('Sistema nao encontrado ou desativado.');
-                    if (!dbSystem.is_active) throw new Error('Este sistema esta desativado.');
+                    if (!dbSystem || !dbSystem.id) throw new Error('Sistema não encontrado ou desativado.');
+                    if (!dbSystem.is_active) throw new Error('Este sistema está desativado.');
 
                     const accessResp = await fetch(`${SUPA_URL}/rest/v1/v_sso_acesso?usuario_id=eq.${user.id}&sistema_id=eq.${dbSystem.id}&select=is_active,perfil_nome`, { headers: rbacHeaders });
-                    if (!accessResp.ok) throw new Error('Voce nao possui acesso a este sistema.');
+                    if (!accessResp.ok) throw new Error('Você não tem acesso a este sistema. Peça liberação pelo botão Solicitar acesso.');
                     const accessRows = await accessResp.json();
-                    if (accessRows.length === 0) throw new Error('Voce nao possui acesso a este sistema.');
+                    if (accessRows.length === 0) throw new Error('Você não tem acesso a este sistema. Peça liberação pelo botão Solicitar acesso.');
                     if (!accessRows[0].is_active) throw new Error('Seu acesso a este sistema foi revogado.');
                     perfil = accessRows[0].perfil_nome || 'VISAO';
                 }
@@ -563,10 +522,10 @@
                     // Re-check maintenance — blocks login even if page loaded before maintenance started
                     const maintNow = await checkMaintenance(appSlug);
                     if (maintNow) {
-                        document.getElementById('maint-message').textContent = maintNow.mensagem || 'Sistema temporariamente indisponivel.';
+                        document.getElementById('maint-message').textContent = maintNow.mensagem || 'Sistema temporariamente indisponível.';
                         if (maintNow.previsao_fim) {
                             const etaEl = document.getElementById('maint-eta');
-                            etaEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Previsao de retorno: <strong>${new Date(maintNow.previsao_fim).toLocaleString('pt-BR')}</strong>`;
+                            etaEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Previsão de retorno: <strong>${new Date(maintNow.previsao_fim).toLocaleString('pt-BR')}</strong>`;
                             etaEl.style.display = 'inline-block';
                         }
                         document.getElementById('maint-overlay').classList.add('show');
@@ -578,7 +537,7 @@
                     const localSupabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 
                     const { data: authData, error: authError } = await localSupabase.auth.signInWithPassword({ email, password: pass });
-                    if (authError) throw new Error("Credenciais invalidas. Verifique e-mail e senha.");
+                    if (authError) throw new Error("E-mail ou senha incorretos. Confira e tente de novo.");
 
                     if (redirectUrl && !redirecionamentoPermitido(redirectUrl)) {
                         await localSupabase.auth.signOut();

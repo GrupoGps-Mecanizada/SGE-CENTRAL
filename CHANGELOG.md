@@ -1,5 +1,11 @@
 # Mudanças da SGE Central
 
+## v2.4.0 · 2026-11-17 · Tela de login aprovada (local, ramo login-aprovado, NÃO publicada)
+- `sso_login.html` com o visual aprovado pelo dono (Portfólio 15, login escolhido): sem cartão, logo "Grupo GPS" grande com brilho e o "sge" oficial, campos com linha e rótulo que sobe, partículas de luz subindo, sol/lua (tema guardado em `sge_tema`, o mesmo do portal e dos sistemas; escuro = Azul profundo). "Entrando em <sistema>" no lugar de SISTEMA/SETOR. Botão "ver" a senha e explicação do primeiro acesso (senha provisória).
+- **Lógica de login sem mudança** (senha, cadastro ativo, acesso por sistema, sessão, manutenção, troca da senha provisória, endereços de retorno permitidos, login único): só os textos das mensagens ganharam acento ("E-mail ou senha incorretos…").
+- "Lembrar de mim" da tela aprovada ficou de fora: o login já fica lembrado sozinho; uma caixinha sem efeito seria enganosa.
+- Testado no navegador com o banco simulado: senha errada, login certo indo ao portal, senha provisória pedindo a nova, pedido de acesso, manutenção, tema escuro e celular (11 de 11).
+
 ## v2.3.0 · 2026-10-09 · Login único e "Mostrar no portal"
 - **Login único:** quem já entrou no SGE (portal ou outro sistema, mesma sessão) não digita a senha de novo: a página de login confere cadastro e acesso e segue direto para o sistema. Senha provisória continua obrigando a trocar.
 - Tela de Sistemas: caixinha **Mostrar no portal** (desmarcada: o sistema some do portal e da grade da Barra Universal, mas continua funcionando).
