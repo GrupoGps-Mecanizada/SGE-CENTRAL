@@ -1,10 +1,28 @@
 # Mudanças da SGE Central
 
-## v2.4.0 · 2026-11-17 · Tela de login aprovada (local, ramo login-aprovado, NÃO publicada)
+## v2.5.0 · 2026-11-18 · Tela de login aprovada (publicada 18/11/2026 com o portal novo)
 - `sso_login.html` com o visual aprovado pelo dono (Portfólio 15, login escolhido): sem cartão, logo "Grupo GPS" grande com brilho e o "sge" oficial, campos com linha e rótulo que sobe, partículas de luz subindo, sol/lua (tema guardado em `sge_tema`, o mesmo do portal e dos sistemas; escuro = Azul profundo). "Entrando em <sistema>" no lugar de SISTEMA/SETOR. Botão "ver" a senha e explicação do primeiro acesso (senha provisória).
 - **Lógica de login sem mudança** (senha, cadastro ativo, acesso por sistema, sessão, manutenção, troca da senha provisória, endereços de retorno permitidos, login único): só os textos das mensagens ganharam acento ("E-mail ou senha incorretos…").
 - "Lembrar de mim" da tela aprovada ficou de fora: o login já fica lembrado sozinho; uma caixinha sem efeito seria enganosa.
 - Testado no navegador com o banco simulado: senha errada, login certo indo ao portal, senha provisória pedindo a nova, pedido de acesso, manutenção, tema escuro e celular (11 de 11).
+
+## v2.4.1 · 2026-10-15 · Correção: "Não consegui carregar os usuários"
+- O site recebia erro 406 ao ler os níveis direto em `gps_compartilhado` (área não aberta para o site). Agora lê e grava pela visão `public.v_acesso_permissoes` (mesmas regras de segurança da tabela).
+- Banco: `supabase/migrations/20261015_visao_acesso_permissoes.sql` (rodar ANTES de publicar o código).
+- Saiu `fetchUserAccess` (só a tela antiga usava).
+
+## v2.4.0 · 2026-10-15 · Tela "Usuários e acessos" (modelo do SST)
+- A antiga "Gestão de Identidade" + "Configuração de Usuário" saiu. No lugar: **cartões dos 6 níveis** (quantas pessoas em cada; clicar filtra), **lista de pessoas** (setor, quantos sistemas, Liberado/Bloqueado) com busca sem acento por nome, e-mail ou setor.
+- Clicar numa pessoa abre a **gaveta lateral**: todos os sistemas, cada um com "Sem acesso" ou um dos 6 níveis (vale na hora, fica no histórico); setores; Redefinir senha; Bloquear em todos os sistemas. Seu próprio acesso à Central continua travado.
+- "Sem acesso" desliga o acesso (a linha fica guardada); escolher um nível de novo religa.
+- Mesmo banco (`gps_compartilhado.acesso_permissoes`): **nenhum SQL novo**.
+- Arquivos: `js/tela-acessos.js`, `js/pessoas.js` (regras, 5 testes), `css/acessos.css`; teste visual com dados falsos em `testes/navegador/tela-acessos.html`.
+
+## Banco · 2026-10-13 · Régua única de acesso, etapa A
+Spec: `D:/SEGUNDO CEREBRO - IDE/2 - Projetos/SGE/Departamentos/9 - Programação/Régua única de acesso - especificação.md`
+- `public.v_sso_acesso` passa a ler `acesso_permissoes` (fonte única) e traduz o nível para o nome antigo (SUPER/ADM/GESTAO/VISAO/SUPERVISOR). Mesmas colunas e tipos.
+- Aplicado e conferido: os 30 acessos antigos ficaram iguais (0 diferenças); entraram os 8 acessos que só existiam na tabela nova (SST, Monitoramento, Mapeamento). Leitura como anônimo conferida.
+- SQL: `supabase/migrations/20261013_regua_unica_visao_tradutora.sql`. Volta ensaiada: `supabase/voltar/20261013_voltar_visao_tradutora.sql`.
 
 ## v2.3.0 · 2026-10-09 · Login único e "Mostrar no portal"
 - **Login único:** quem já entrou no SGE (portal ou outro sistema, mesma sessão) não digita a senha de novo: a página de login confere cadastro e acesso e segue direto para o sistema. Senha provisória continua obrigando a trocar.

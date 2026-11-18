@@ -22,8 +22,8 @@
 │                                                          │
 │  public.v_sso_usuarios   → gps_compartilhado.sge_central_usuarios          │
 │  public.v_sso_sistemas   → gps_compartilhado.sge_central_sistemas          │
-│  public.v_sso_acesso     → gps_compartilhado.sge_central_usuario_sistema_  │
-│                             acesso + sge_central_perfis (JOIN)              │
+│  public.v_sso_acesso     → gps_compartilhado.acesso_permissoes (régua      │
+│                             única, nível traduzido p/ nome antigo, 10/2026) │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -205,7 +205,7 @@ const SGE_SDK_VERSION = 6; // era 5, agora 6
 |------|--------|-----|
 | `v_sso_usuarios` | id, nome, email, is_active | Verificar se usuário está ativo |
 | `v_sso_sistemas` | id, nome, slug, is_active | Verificar se sistema está ativo |
-| `v_sso_acesso` | id, usuario_id, sistema_id, is_active, perfil_nome | Verificar acesso + perfil |
+| `v_sso_acesso` | id, usuario_id, sistema_id, is_active, perfil_nome | Verificar acesso + perfil (desde 2026-10-13 lê `acesso_permissoes`; ADMIN→ADM, GESTOR→GESTAO, demais→VISAO, preservando SUPER/ADM antigos) |
 
 ### Permissões (RLS/Grants)
 

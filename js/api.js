@@ -4,7 +4,7 @@
  * 
  * Table structures:
  *   sge_central_usuario_setores:  usuario_id + setor_id (composite PK, NO id column)
- *   sge_central_usuario_sistema_acesso: id, usuario_id, sistema_id, perfil_id, concedido_por, concedido_em, is_active
+ *   acesso_permissoes (gps_compartilhado): id, usuario_id, sistema_id, papel, ativo — régua única de acesso
  */
 let supabaseClient = null;
 let _authClient = null;
@@ -150,18 +150,38 @@ async function fetchAuditLogs() {
 
 // ==================== RBAC: Permissões de Acesso ====================
 
-// sge_central_usuario_sistema_acesso HAS an id column
-async function fetchUserAccess(userId) {
-    const { data, error } = await db()
-        .from('sge_central_usuario_sistema_acesso')
-        .select(`
-            id, usuario_id, sistema_id, perfil_id, is_active,
-            sistema:sge_central_sistemas!sge_central_usuario_sistema_acesso_sistema_id_fkey(id, nome, slug, is_active),
-            perfil:sge_central_perfis!sge_central_usuario_sistema_acesso_perfil_id_fkey(id, nome, nivel)
-        `)
-        .eq('usuario_id', userId);
+// Régua única (2026-10-13): acessos ficam em gps_compartilhado.acesso_permissoes (papel + ativo).
+// O site só enxerga a public: lê e grava pela visão public.v_acesso_permissoes (mesmo RLS da tabela).
+function acessos() {
+    return db().from('v_acesso_permissoes');
+}
+
+// Tela "Usuários e acessos": todos os acessos e setores de uma vez (o admin da Central lê tudo pelo RLS).
+async function fetchAllAccess() {
+    const { data, error } = await acessos().select('id, usuario_id, sistema_id, papel, ativo');
     if (error) throw error;
     return data || [];
+}
+
+async function fetchAllUserSectors() {
+    const { data, error } = await db().from('sge_central_usuario_setores').select('usuario_id, setor_id');
+    if (error) throw error;
+    return data || [];
+}
+
+// Escolher um nível também reativa um acesso que estava desligado.
+async function setAccessLevel(accessId, papel) {
+    const { error } = await acessos().update({ papel, ativo: true }).eq('id', accessId);
+    if (error) throw error;
+}
+
+async function getMeuId() {
+    try {
+        const { data } = await db().auth.getUser();
+        return data?.user?.id || null;
+    } catch {
+        return null;
+    }
 }
 
 // sge_central_usuario_setores has NO id column — composite PK (usuario_id, setor_id)
@@ -177,35 +197,31 @@ async function fetchUserSectors(userId) {
     return data || [];
 }
 
-async function grantSystemAccess(userId, sistemaId, perfilId) {
-    const { data, error } = await db()
-        .from('sge_central_usuario_sistema_acesso')
-        .insert({ usuario_id: userId, sistema_id: sistemaId, perfil_id: perfilId, is_active: true })
+async function grantSystemAccess(userId, sistemaId, papel) {
+    const { data, error } = await acessos()
+        .insert({ usuario_id: userId, sistema_id: sistemaId, papel, ativo: true })
         .select();
     if (error) throw error;
     return data;
 }
 
 async function revokeSystemAccess(accessId) {
-    const { error } = await db()
-        .from('sge_central_usuario_sistema_acesso')
+    const { error } = await acessos()
         .delete()
         .eq('id', accessId);
     if (error) throw error;
 }
 
-async function updateAccessProfile(accessId, newPerfilId) {
-    const { error } = await db()
-        .from('sge_central_usuario_sistema_acesso')
-        .update({ perfil_id: newPerfilId })
+async function updateAccessProfile(accessId, papel) {
+    const { error } = await acessos()
+        .update({ papel })
         .eq('id', accessId);
     if (error) throw error;
 }
 
-async function toggleAccessActive(accessId, newActiveState) {
-    const { error } = await db()
-        .from('sge_central_usuario_sistema_acesso')
-        .update({ is_active: newActiveState })
+async function toggleAccessActive(accessId, ativo) {
+    const { error } = await acessos()
+        .update({ ativo })
         .eq('id', accessId);
     if (error) throw error;
 }
@@ -528,7 +544,10 @@ window.SGE_API = {
     fetchAllSystems,
     fetchAllProfiles,
     fetchAuditLogs,
-    fetchUserAccess,
+    fetchAllAccess,
+    fetchAllUserSectors,
+    setAccessLevel,
+    getMeuId,
     fetchUserSectors,
     grantSystemAccess,
     revokeSystemAccess,

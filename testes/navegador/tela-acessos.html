@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Teste — Usuários e acessos (dados falsos)</title>
+<link rel="stylesheet" href="../../css/style.css"><link rel="stylesheet" href="../../css/acessos.css">
+<style>body{padding:20px;background:var(--bg-0)} .panel{display:block!important}</style>
+</head><body>
+<!-- Página de teste com DADOS FALSOS: abre a tela nova sem login nem banco. -->
+<div id="panel-users" class="panel view active">
+  <div class="panel-header"><h2>Usuários e acessos</h2>
+    <div class="actions" style="display:flex;gap:8px"><div class="search-input-wrap"><input type="search" class="search-input" id="search-users" placeholder="Buscar nome, e-mail ou setor..."></div>
+    <button class="btn-primary" id="btn-create-user">Novo usuário</button></div></div>
+  <p class="acessos-info">O login é o mesmo em todos os sistemas do SGE. Só entra num sistema quem tem um nível nele. Clique num cartão para filtrar pelo nível e numa pessoa para mudar os acessos.</p>
+  <div id="acessos-niveis" class="acessos-niveis"></div>
+  <p id="acessos-resumo" class="acessos-resumo"></p>
+  <div class="table-container"><table class="tabela-pessoas"><thead><tr><th>Pessoa</th><th>Setor</th><th>Sistemas</th><th>Acesso</th></tr></thead><tbody id="table-users"></tbody></table></div>
+</div>
+<div id="gaveta-pessoa" class="gaveta-fundo" hidden></div>
+<script>
+let _allSystems = [
+  { id: 1, nome: 'SGE Central', slug: 'sge_hub', is_active: true },
+  { id: 2, nome: 'Gestão de Efetivo', slug: 'gestao_efetivo_mec', is_active: true },
+  { id: 3, nome: 'Etilômetro', slug: 'etilometro', is_active: true },
+  { id: 4, nome: 'Controle de Frota', slug: 'monitoramento_produtividade', is_active: true },
+  { id: 5, nome: 'SST', slug: 'sst_mec', is_active: true },
+  { id: 6, nome: 'Almoxarifado', slug: 'almoxarifado', is_active: false },
+];
+let _allSectors = [{ id: 10, sigla: 'ADM', nome: 'Administrativo' }, { id: 11, sigla: 'OPE', nome: 'Operação' }, { id: 12, sigla: 'SEG', nome: 'Segurança' }];
+const banco = {
+  usuarios: [
+    { id: 'u1', nome: 'Pessoa Teste Um', email: 'teste.um@exemplo.com', is_active: true },
+    { id: 'u2', nome: 'Pessoa Teste Dois', email: 'teste.dois@exemplo.com', is_active: true },
+    { id: 'u3', nome: 'Pessoa Teste Três', email: 'teste.tres@exemplo.com', is_active: false },
+  ],
+  acessos: [
+    { id: 1, usuario_id: 'u1', sistema_id: 1, papel: 'ADMIN', ativo: true },
+    { id: 2, usuario_id: 'u1', sistema_id: 2, papel: 'GESTOR', ativo: true },
+    { id: 3, usuario_id: 'u2', sistema_id: 2, papel: 'SUPERVISOR', ativo: true },
+    { id: 4, usuario_id: 'u2', sistema_id: 4, papel: 'LEITURA', ativo: true },
+    { id: 5, usuario_id: 'u2', sistema_id: 3, papel: 'OPERADOR', ativo: false },
+  ],
+  setores: [{ usuario_id: 'u1', setor_id: 10 }, { usuario_id: 'u2', setor_id: 11 }],
+};
+let proxId = 100;
+window.registro = [];
+window.SGE_API = {
+  fetchAllUsers: async () => banco.usuarios.map(u => ({ ...u })),
+  fetchAllAccess: async () => banco.acessos.map(a => ({ ...a })),
+  fetchAllUserSectors: async () => banco.setores.map(s => ({ ...s })),
+  getMeuId: async () => 'u1',
+  grantSystemAccess: async (u, s, papel) => { banco.acessos.push({ id: proxId++, usuario_id: u, sistema_id: Number(s), papel, ativo: true }); },
+  setAccessLevel: async (id, papel) => { Object.assign(banco.acessos.find(a => a.id == id), { papel, ativo: true }); },
+  toggleAccessActive: async (id, ativo) => { banco.acessos.find(a => a.id == id).ativo = ativo; },
+  addUserSector: async (u, s) => { banco.setores.push({ usuario_id: u, setor_id: Number(s) }); },
+  removeUserSector: async (u, s) => { banco.setores = banco.setores.filter(x => !(x.usuario_id === u && x.setor_id == s)); },
+  insertAuditLog: async (acao, d) => { window.registro.push(acao); },
+};
+const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const sgeToast = (t, m) => { window.ultimoAviso = m; };
+const sgeConfirm = async () => true;
+const emptyStateSVG = () => '';
+const switchPanel = () => {};
+const loadAuditLogs = () => {};
+const resetUserPassword = (u) => { window.ultimoAviso = 'senha ' + u.email; };
+const toggleUserStatus = async (id, ativo) => { banco.usuarios.find(u => u.id === id).is_active = !ativo; loadUsers(); };
+</script>
+<script src="../../js/regua.js"></script>
+<script src="../../js/pessoas.js"></script>
+<script src="../../js/tela-acessos.js"></script>
+<script>document.addEventListener('DOMContentLoaded', () => loadUsers());</script>
+</body></html>
